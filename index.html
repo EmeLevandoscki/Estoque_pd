@@ -4,776 +4,201 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gerenciador de Estoque & Pedidos</title>
-  <style>
-    /* Estilos Globais e Reset */
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      background: #f8fafc; 
-      color: #334155; 
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; 
-      font-size: 15px; 
-      line-height: 1.5; 
-      padding: 2rem 1rem;
-    }
-    .app { max-width: 1040px; margin: 0 auto; display: none; } /* Escondido por padrão até autenticar */
-    
-    /* Tela de Login / Bloqueio */
-    .lock-screen {
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: #f1f5f9;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-    }
-    .lock-card {
-      background: #fff;
-      padding: 2.5rem;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 380px;
-      text-align: center;
-    }
-    .lock-card h2 { margin-bottom: 0.5rem; color: #0f172a; }
-    .lock-card p { font-size: 14px; color: #64748b; margin-bottom: 1.5rem; }
-    .lock-card input { margin-bottom: 1rem; text-align: center; font-size: 18px; letter-spacing: 4px; }
-    .lock-card button { width: 100%; }
-
-    /* Tipografia */
-    h1 { font-size: 26px; font-weight: 700; margin-bottom: 1.5rem; color: #0f172a; letter-spacing: -0.02em; }
-    h2 { font-size: 18px; font-weight: 600; margin-bottom: 1.25rem; color: #1e293b; }
-    h3 { font-size: 15px; font-weight: 600; margin: 1.5rem 0 .75rem; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; font-size: 12px; }
-    
-    /* Navegação por Abas */
-    .tabs { 
-      display: flex; 
-      gap: 6px; 
-      margin-bottom: 1.5rem; 
-      background: #e2e8f0; 
-      padding: 4px; 
-      border-radius: 8px;
-      max-width: fit-content;
-    }
-    .tab-btn { 
-      background: none; 
-      border: none; 
-      padding: 8px 20px; 
-      font-size: 14px; 
-      font-weight: 600; 
-      color: #64748b; 
-      cursor: pointer; 
-      border-radius: 6px;
-      transition: all 0.2s ease;
-    }
-    .tab-btn:hover { color: #334155; background: rgba(255,255,255,0.5); }
-    .tab-btn.active { background: #fff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    
-    /* Painéis / Cards */
-    .panel { 
-      display: none; 
-      background: #fff; 
-      border: 1px solid #e2e8f0; 
-      border-radius: 12px; 
-      padding: 2rem; 
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-    }
-    .panel.active { display: block; animation: fadeIn 0.2s ease; }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Formulários */
-    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
-    label { font-size: 13px; font-weight: 600; color: #475569; }
-    input, select { 
-      font-size: 14px; 
-      padding: 10px 14px; 
-      border: 1px solid #cbd5e1; 
-      border-radius: 8px; 
-      background: #fff; 
-      color: #1e293b; 
-      width: 100%; 
-      transition: all 0.2s ease;
-    }
-    input:focus, select:focus { 
-      outline: none; 
-      border-color: #6366f1; 
-      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12); 
-    }
-    
-    /* Botões */
-    .btn-row { display: flex; gap: 10px; margin-top: 1.5rem; flex-wrap: wrap; }
-    button { 
-      font-size: 14px; 
-      font-weight: 600; 
-      padding: 10px 20px; 
-      border-radius: 8px; 
-      border: 1px solid #cbd5e1; 
-      background: #fff; 
-      color: #334155; 
-      cursor: pointer; 
-      transition: all 0.2s ease;
-    }
-    button:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
-    button.primary { background: #6366f1; color: #fff; border-color: #6366f1; }
-    button.primary:hover { background: #4f46e5; border-color: #4f46e5; }
-    button.success { background: #10b981; color: #fff; border-color: #10b981; }
-    button.success:hover { background: #059669; border-color: #059669; }
-    button.danger { color: #ef4444; border-color: #fecaca; background: #fef2f2; }
-    button.danger:hover { background: #fee2e2; border-color: #fca5a5; }
-    button.sm { font-size: 13px; padding: 6px 12px; border-radius: 6px; }
-    
-    /* Tabelas */
-    .tbl-wrap { overflow-x: auto; margin-top: 1.25rem; border: 1px solid #e2e8f0; border-radius: 8px; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; }
-    th { padding: 12px 16px; background: #f8fafc; color: #64748b; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; }
-    td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #334155; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f8fafc; }
-    
-    /* Badges / Status */
-    .badge { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 100px; }
-    .badge-ok { background: #d1fae5; color: #065f46; }
-    .badge-pend { background: #fef3c7; color: #92400e; }
-    
-    /* Controle de Quantidade em Linha */
-    .qty-ctrl { display: flex; align-items: center; gap: 4px; background: #f1f5f9; padding: 2px; border-radius: 6px; width: max-content; }
-    .qty-ctrl button { padding: 2px 8px; font-size: 14px; min-width: 26px; border: none; background: transparent; box-shadow: none; }
-    .qty-ctrl button:hover { background: #fff; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    .qty-num { min-width: 32px; text-align: center; font-weight: 600; color: #1e293b; font-size: 13px; }
-    
-    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-    .empty { color: #94a3b8; font-size: 14px; padding: 2rem 0; text-align: center; }
-    
-    /* Notificação Toast */
-    .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; opacity: 0; transition: all .3s ease; pointer-events: none; z-index: 99; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
-
-    /* Pagamento na tabela de clientes */
-    .pay-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .pay-row input { width: 90px; padding: 6px 10px; font-size: 13px; border-radius: 6px; }
-    .pay-row button { font-size: 12px; padding: 6px 12px; border-radius: 6px; }
-    .saldo-zero { color: #10b981; font-weight: 600; }
-    .saldo-pos { color: #ef4444; font-weight: 600; }
-
-    /* Itens do pedido / Carrinho */
-    .item-linha { display: grid; grid-template-columns: 1fr 90px auto; gap: 12px; align-items: end; margin-bottom: 12px; }
-    .item-linha button { padding: 10px 16px; }
-    
-    .resumo-pedido { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 16px; font-size: 14px; }
-    .resumo-pedido .total { font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 8px; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
-    
-    .item-tag { display: inline-flex; align-items: center; gap: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; font-size: 13px; margin: 4px 4px 4px 0; font-weight: 500; color: #334155; }
-    .item-tag button { background: none; border: none; color: #94a3b8; font-size: 14px; padding: 0 0 0 4px; cursor: pointer; font-weight: 700; line-height: 1; }
-    .item-tag button:hover { color: #ef4444; }
-    .sep { border: none; border-top: 1px solid #e2e8f0; margin: 1.5rem 0; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div class="lock-screen" id="tela-bloqueio">
-  <div class="lock-card">
-    <h2 id="lock-titulo">Sistema Bloqueado</h2>
-    <p id="lock-subtitulo">Insira a sua senha de acesso</p>
-    <input type="password" id="campo-senha" placeholder="••••" onkeydown="if(event.key==='Enter') verificarSenha()">
-    <button class="primary" onclick="verificarSenha()" id="btn-lock">Entrar</button>
-  </div>
-</div>
-
-<div class="app" id="app-container">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-    <h1>Gerenciador de Estoque & Pedidos</h1>
-    <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
-  </div>
-
-  <div class="tabs">
-    <button class="tab-btn active" onclick="showTab('estoque', this)">Estoque</button>
-    <button class="tab-btn" onclick="showTab('clientes', this)">Clientes</button>
-    <button class="tab-btn" onclick="showTab('pedidos', this)">Pedidos</button>
-    <button class="tab-btn" onclick="showTab('historico', this)">Histórico</button>
-  </div>
-
-  <div id="estoque" class="panel active">
-    <h2 id="estoque-title">Novo produto</h2>
-    <input type="hidden" id="edit-produto-id">
-    <div class="form-row">
-      <div class="form-group"><label>Nome</label><input id="p-nome" placeholder="Ex: Batom Vermelho"></div>
-      <div class="form-group"><label>Categoria</label><input id="p-cat" placeholder="Ex: Maquiagem"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Quantidade</label><input type="number" id="p-qty" value="0" min="0"></div>
-      <div class="form-group"><label>Preço unitário (R$)</label><input type="number" id="p-preco" value="0" step="0.01" min="0"></div>
-    </div>
-    <div class="btn-row">
-      <button class="primary" onclick="salvarProduto()">Salvar produto</button>
-      <button onclick="cancelarEdicaoProduto()">Cancelar</button>
-    </div>
-    <h3>Produtos cadastrados</h3>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Produto</th><th>Categoria</th><th>Quantidade</th><th>Preço</th><th>Ações</th></tr></thead>
-        <tbody id="tbody-estoque"></tbody>
-      </table>
+  <div class="lock-screen" id="tela-bloqueio">
+    <div class="lock-card">
+      <h2 id="lock-titulo">Sistema Bloqueado</h2>
+      <p id="lock-subtitulo">Insira a sua senha de acesso</p>
+      <input type="password" id="campo-senha" placeholder="••••" onkeydown="if(event.key==='Enter') verificarSenha()">
+      <button class="primary" onclick="verificarSenha()" id="btn-lock">Entrar</button>
     </div>
   </div>
 
-  <div id="clientes" class="panel">
-    <h2 id="cliente-title">Novo cliente</h2>
-    <input type="hidden" id="edit-cliente-id">
-    <div class="form-row">
-      <div class="form-group" style="max-width:400px"><label>Nome do Cliente</label><input id="c-nome" placeholder="Ex: Maria Silva"></div>
-    </div>
-    <div class="btn-row">
-      <button class="primary" onclick="salvarCliente()">Salvar cliente</button>
-      <button onclick="cancelarEdicaoCliente()">Cancelar</button>
-    </div>
-    <h3>Clientes cadastrados</h3>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Nome</th><th>Saldo devedor</th><th>Abater pagamento</th><th>Ações</th></tr></thead>
-        <tbody id="tbody-clientes"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div id="pedidos" class="panel">
-    <h2>Novo pedido</h2>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Cliente</label>
-        <select id="ped-cliente"><option value="">Selecione...</option></select>
-      </div>
-      <div class="form-group">
-        <label>Forma de pagamento</label>
-        <select id="ped-forma">
-          <option value="dinheiro">Dinheiro</option>
-          <option value="pix">PIX</option>
-          <option value="cartao">Cartão</option>
-          <option value="debito">Débito</option>
-          <option value="credito">Crédito</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Parcelas</label>
-        <select id="ped-parcelas">
-          <option value="1">1x (à vista)</option>
-          <option value="2">2x</option>
-          <option value="3">3x</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Valor pago agora (R$)</label>
-        <input type="number" id="ped-pago" value="0" step="0.01" min="0">
-      </div>
+  <div class="app" id="app-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      <h1>Gerenciador de Estoque & Pedidos</h1>
+      <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
     </div>
 
-    <hr class="sep">
-    <h3>Adicionar produtos ao pedido</h3>
-    <div class="item-linha">
-      <div class="form-group">
-        <label>Produto</label>
-        <select id="ped-produto"><option value="">Selecione...</option></select>
-      </div>
-      <div class="form-group">
-        <label>Qtd</label>
-        <input type="number" id="ped-qty" value="1" min="1">
-      </div>
-      <button class="primary" onclick="adicionarItemPedido()" style="margin-bottom:0">Adicionar</button>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('estoque', this)">Estoque</button>
+      <button class="tab-btn" onclick="showTab('clientes', this)">Clientes</button>
+      <button class="tab-btn" onclick="showTab('pedidos', this)">Pedidos</button>
+      <button class="tab-btn" onclick="showTab('historico', this)">Histórico</button>
     </div>
 
-    <div id="itens-lista" style="margin-top:12px; min-height:32px"></div>
-
-    <div class="resumo-pedido" id="resumo-pedido" style="display:none">
-      <div id="resumo-itens"></div>
-      <div class="total" id="resumo-total"></div>
-    </div>
-
-    <div class="btn-row" style="margin-top:24px">
-      <button class="success" onclick="fazerPedido()">Registrar pedido</button>
-      <button onclick="limparPedido()">Limpar tudo</button>
-    </div>
-  </div>
-
-  <div id="historico" class="panel">
-    <h2>Histórico de pedidos</h2>
-    <div style="margin-bottom:1.25rem">
-      <select id="filtro-cliente" onchange="renderHistorico()" style="max-width:280px;">
-        <option value="">Todos os clientes</option>
-      </select>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Data</th><th>Cliente</th><th>Produtos</th><th>Total</th><th>Pago</th><th>Parcelas</th><th>Forma</th><th>Status</th></tr></thead>
-        <tbody id="tbody-historico"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-// ─── LOGICA DE AUTENTICAÇÃO (APENAS SENHA) ───────────────────────────────
-const STORAGE_KEY = "sistema_estoque_senha";
-
-function inicializarSeguranca() {
-  const senhaSalva = localStorage.getItem(STORAGE_KEY);
-  const tela = document.getElementById("tela-bloqueio");
-  const titulo = document.getElementById("lock-titulo");
-  const subtitulo = document.getElementById("lock-subtitulo");
-  const btn = document.getElementById("btn-lock");
-  const campo = document.getElementById("campo-senha");
-
-  if (!senhaSalva) {
-    titulo.textContent = "Primeiro Acesso";
-    subtitulo.textContent = "Crie uma senha mestre para proteger o sistema:";
-    btn.textContent = "Definir Senha";
-  }
-  campo.focus();
-}
-
-function verificarSenha() {
-  const senhaSalva = localStorage.getItem(STORAGE_KEY);
-  const campo = document.getElementById("campo-senha");
-  const valorDigitado = campo.value.trim();
-
-  if (!valorDigitado) {
-    alert("Por favor, digite uma senha.");
-    return;
-  }
-
-  if (!senhaSalva) {
-    // Modo: Cadastro de senha inicial
-    localStorage.setItem(STORAGE_KEY, valorDigitado);
-    alert("Senha cadastrada com sucesso! Não a esqueça.");
-    desbloquearApp();
-  } else {
-    // Modo: Verificação padrão
-    if (valorDigitado === senhaSalva) {
-      desbloquearApp();
-    } else {
-      alert("Senha incorreta!");
-      campo.value = "";
-      campo.focus();
-    }
-  }
-}
-
-function desbloquearApp() {
-  document.getElementById("tela-bloqueio").style.display = "none";
-  document.getElementById("app-container").style.display = "block";
-  document.getElementById("campo-senha").value = "";
-}
-
-function bloquearSistema() {
-  document.getElementById("app-container").style.display = "none";
-  document.getElementById("tela-bloqueio").style.display = "flex";
-  inicializarSeguranca();
-}
-
-// Inicializa a segurança assim que o script carregar
-window.addEventListener("DOMContentLoaded", inicializarSeguranca);
-
-
-// ─── LOGICA DO BANCO DE DADOS E APPLICATIVO ─────────────────────────────
-let db;
-const dbReq = indexedDB.open("estoquePedidosV4", 1);
-
-dbReq.onerror = () => alert("Erro ao abrir banco de dados.");
-
-dbReq.onupgradeneeded = e => {
-  db = e.target.result;
-  if (!db.objectStoreNames.contains("produtos"))
-    db.createObjectStore("produtos", { keyPath: "id", autoIncrement: true });
-  if (!db.objectStoreNames.contains("clientes"))
-    db.createObjectStore("clientes", { keyPath: "id", autoIncrement: true });
-  if (!db.objectStoreNames.contains("pedidos"))
-    db.createObjectStore("pedidos", { keyPath: "id", autoIncrement: true });
-  if (!db.objectStoreNames.contains("pagamentos"))
-    db.createObjectStore("pagamentos", { keyPath: "id", autoIncrement: true });
-};
-
-dbReq.onsuccess = e => { db = e.target.result; renderAll(); };
-
-function dbGetAll(store) {
-  return new Promise(res => { const r = db.transaction([store],"readonly").objectStore(store).getAll(); r.onsuccess = () => res(r.result); });
-}
-function dbGetById(store, id) {
-  return new Promise(res => { const r = db.transaction([store],"readonly").objectStore(store).get(id); r.onsuccess = () => res(r.result); });
-}
-function dbPut(store, obj) {
-  return new Promise(res => { const r = db.transaction([store],"readwrite").objectStore(store).put(obj); r.onsuccess = () => res(r.result); });
-}
-function dbAdd(store, obj) {
-  return new Promise(res => { const r = db.transaction([store],"readwrite").objectStore(store).add(obj); r.onsuccess = () => res(r.result); });
-}
-function dbDelete(store, id) {
-  return new Promise(res => { const r = db.transaction([store],"readwrite").objectStore(store).delete(id); r.onsuccess = () => res(); });
-}
-
-function toast(msg) {
-  const t = document.getElementById("toast");
-  t.textContent = msg; t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2200);
-}
-
-function showTab(name, btn) {
-  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  document.getElementById(name).classList.add("active");
-  btn.classList.add("active");
-}
-
-let produtos = [], clientes = [], pedidos = [], pagamentos = [];
-
-async function renderAll() {
-  await renderEstoque();
-  await renderClientes();
-  await renderHistorico();
-  await atualizarSelects();
-}
-
-// ─── ESTOQUE ────────────────────────────────────────────────────────────
-async function renderEstoque() {
-  produtos = await dbGetAll("produtos");
-  const tbody = document.getElementById("tbody-estoque");
-  if (!produtos.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum produto cadastrado.</td></tr>'; return; }
-  tbody.innerHTML = produtos.map(p => `
-    <tr>
-      <td style="font-weight: 600; color: #0f172a;">${p.nome}</td>
-      <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria}</span></td>
-      <td>
-        <div class="qty-ctrl">
-          <button onclick="ajustarQty(${p.id},-1)">&#8722;</button>
-          <span class="qty-num">${p.quantidade}</span>
-          <button onclick="ajustarQty(${p.id},1)">&#43;</button>
+    <div id="estoque" class="panel active">
+      <h2 id="estoque-title">Novo produto</h2>
+      <input type="hidden" id="edit-produto-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome</label>
+          <input id="p-nome" placeholder="Ex: Batom Vermelho" onkeydown="handleEnterKey(event, 'p-cat')">
         </div>
-      </td>
-      <td style="font-weight: 500;">R$ ${p.preco.toFixed(2)}</td>
-      <td class="actions">
-        <button class="sm" onclick="editarProduto(${p.id})">Editar</button>
-        <button class="sm danger" onclick="deletarProduto(${p.id})">Excluir</button>
-      </td>
-    </tr>`).join("");
-}
+        <div class="form-group">
+          <label>Categoria</label>
+          <input id="p-cat" placeholder="Ex: Maquiagem" onkeydown="handleCategoryKey(event)" autocomplete="off">
+          <div class="category-suggestions" id="categoria-sugestoes"></div>
+          <div class="category-buttons" id="botoes-rapidos-categoria"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantidade</label><input type="number" id="p-qty" value="0" min="0" onkeydown="handleEnterKey(event, 'p-preco')"></div>
+        <div class="form-group"><label>Preço unitário (R$)</label><input type="number" id="p-preco" value="0" step="0.01" min="0" onkeydown="handleEnterKey(event, 'salvar-produto')"></div>
+      </div>
+      <div class="btn-row">
+        <button class="primary" onclick="salvarProduto()" id="salvar-produto">Salvar produto</button>
+        <button onclick="cancelarEdicaoProduto()">Cancelar</button>
+      </div>
+      <h3>Produtos cadastrados</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Categoria</th>
+              <th>Quantidade</th>
+              <th>Preço</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-estoque"></tbody>
+        </table>
+      </div>
+    </div>
 
-async function ajustarQty(id, delta) {
-  const p = await dbGetById("produtos", id);
-  if (!p) return;
-  await dbPut("produtos", { ...p, quantidade: Math.max(0, p.quantidade + delta) });
-  await renderEstoque(); await atualizarSelects();
-}
+    <div id="clientes" class="panel">
+      <h2 id="cliente-title">Novo cliente</h2>
+      <input type="hidden" id="edit-cliente-id">
+      <div class="form-row">
+        <div class="form-group" style="max-width:400px">
+          <label>Nome do Cliente</label>
+          <input id="c-nome" placeholder="Ex: Maria Silva" onkeydown="handleEnterKey(event, 'salvar-cliente')">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="primary" onclick="salvarCliente()" id="salvar-cliente">Salvar cliente</button>
+        <button onclick="cancelarEdicaoCliente()">Cancelar</button>
+      </div>
+      <h3>Clientes cadastrados</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Saldo devedor</th>
+              <th>Abater pagamento</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-clientes"></tbody>
+        </table>
+      </div>
+    </div>
 
-async function salvarProduto() {
-  const id = document.getElementById("edit-produto-id").value;
-  const nome = document.getElementById("p-nome").value.trim();
-  const cat = document.getElementById("p-cat").value.trim();
-  const qty = parseInt(document.getElementById("p-qty").value) || 0;
-  const preco = parseFloat(document.getElementById("p-preco").value) || 0;
-  if (!nome || !cat) { toast("Preencha nome e categoria."); return; }
-  if (id) {
-    const ex = await dbGetById("produtos", parseInt(id));
-    await dbPut("produtos", { ...ex, nome, categoria: cat, quantidade: qty, preco });
-    toast("Produto atualizado.");
-  } else {
-    await dbAdd("produtos", { nome, categoria: cat, quantidade: qty, preco, data: new Date().toISOString() });
-    toast("Produto adicionado.");
-  }
-  cancelarEdicaoProduto();
-  await renderEstoque(); await atualizarSelects();
-}
+    <div id="pedidos" class="panel">
+      <h2>Novo pedido</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente</label>
+          <select id="ped-cliente"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Forma de pagamento</label>
+          <select id="ped-forma">
+            <option value="dinheiro">Dinheiro</option>
+            <option value="pix">PIX</option>
+            <option value="cartao">Cartão</option>
+            <option value="debito">Débito</option>
+            <option value="credito">Crédito</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Parcelas</label>
+          <select id="ped-parcelas">
+            <option value="1">1x (à vista)</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Valor pago agora (R$)</label>
+          <input type="number" id="ped-pago" value="0" step="0.01" min="0" onkeydown="handleEnterKey(event, 'ped-produto')">
+        </div>
+      </div>
+      <hr class="sep">
+      <h3>Filtrar produtos por categoria</h3>
+      <div class="category-filter" id="filtro-categoria">
+        <button class="category-button active" onclick="filtrarCategoria('todos')">Todas</button>
+      </div>
+      <h3>Adicionar produtos ao pedido</h3>
+      <div class="item-linha">
+        <div class="form-group">
+          <label>Produto</label>
+          <select id="ped-produto"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Qtd</label>
+          <input type="number" id="ped-qty" value="1" min="1" onkeydown="handleEnterKey(event, 'adicionar-item')">
+        </div>
+        <button class="primary" onclick="adicionarItemPedido()" id="adicionar-item">Adicionar</button>
+      </div>
+      <div id="itens-lista" style="margin-top:12px; min-height:32px"></div>
+      <div class="resumo-pedido" id="resumo-pedido" style="display:none">
+        <div id="resumo-itens"></div>
+        <div class="total" id="resumo-total"></div>
+      </div>
+      <div class="btn-row" style="margin-top:24px">
+        <button class="success" onclick="fazerPedido()">Registrar pedido</button>
+        <button onclick="limparPedido()">Limpar tudo</button>
+      </div>
+    </div>
 
-async function editarProduto(id) {
-  const p = await dbGetById("produtos", id);
-  document.getElementById("edit-produto-id").value = id;
-  document.getElementById("p-nome").value = p.nome;
-  document.getElementById("p-cat").value = p.categoria;
-  document.getElementById("p-qty").value = p.quantidade;
-  document.getElementById("p-preco").value = p.preco;
-  document.getElementById("estoque-title").textContent = "Editar produto";
-  document.getElementById("p-nome").focus();
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
+    <div id="historico" class="panel">
+      <h2>Histórico de pedidos</h2>
+      <div style="margin-bottom:1.25rem">
+        <select id="filtro-cliente" onchange="renderHistorico()" style="max-width:280px;">
+          <option value="">Todos os clientes</option>
+        </select>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Cliente</th>
+              <th>Produtos</th>
+              <th>Total</th>
+              <th>Pago</th>
+              <th>Parcelas</th>
+              <th>Forma</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-historico"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-function cancelarEdicaoProduto() {
-  document.getElementById("edit-produto-id").value = "";
-  document.getElementById("p-nome").value = "";
-  document.getElementById("p-cat").value = "";
-  document.getElementById("p-qty").value = "0";
-  document.getElementById("p-preco").value = "0";
-  document.getElementById("estoque-title").textContent = "Novo produto";
-}
+  <div class="toast" id="toast"></div>
+  <div class="modal-overlay" id="modal-categoria">
+    <div class="modal-content">
+      <h3>Adicionar nova categoria</h3>
+      <input type="text" id="nova-categoria-input" placeholder="Ex: Cuidados Capilares" autofocus>
+      <div class="modal-buttons">
+        <button onclick="fecharModalCategoria()">Cancelar</button>
+        <button class="primary" onclick="adicionarCategoria()">Adicionar</button>
+      </div>
+    </div>
+  </div>
 
-async function deletarProduto(id) {
-  if (!confirm("Excluir este produto?")) return;
-  await dbDelete("produtos", id);
-  toast("Produto excluído."); await renderEstoque(); await atualizarSelects();
-}
-
-// ─── CLIENTES ────────────────────────────────────────────────────────────
-async function renderClientes() {
-  clientes = await dbGetAll("clientes");
-  pedidos = await dbGetAll("pedidos");
-  pagamentos = await dbGetAll("pagamentos");
-  const tbody = document.getElementById("tbody-clientes");
-  if (!clientes.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum cliente cadastrado.</td></tr>'; return; }
-
-  tbody.innerHTML = clientes.map(c => {
-    const totalPedidos = pedidos
-      .filter(p => p.clienteId == c.id)
-      .reduce((s, p) => s + p.valorTotal, 0);
-    const totalPago = pedidos
-      .filter(p => p.clienteId == c.id)
-      .reduce((s, p) => s + p.valorPago, 0)
-      + pagamentos.filter(pg => pg.clienteId == c.id).reduce((s, pg) => s + pg.valor, 0);
-    const saldo = Math.max(0, totalPedidos - totalPago);
-    const saldoClass = saldo === 0 ? "saldo-zero" : "saldo-pos";
-    return `<tr>
-      <td style="font-weight: 600; color: #0f172a;">${c.nome}</td>
-      <td class="${saldoClass}">R$ ${saldo.toFixed(2)}</td>
-      <td>
-        ${saldo > 0 ? `<div class="pay-row">
-          <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$">
-          <button class="sm success" onclick="abaterPagamento(${c.id}, ${saldo.toFixed(2)})">Abater</button>
-          <button class="sm primary" onclick="quitarTudo(${c.id}, ${saldo.toFixed(2)})">Quitar tudo</button>
-        </div>` : '<span class="badge badge-ok">Sem dívida</span>'}
-      </td>
-      <td class="actions">
-        <button class="sm" onclick="editarCliente(${c.id})">Editar</button>
-        <button class="sm danger" onclick="deletarCliente(${c.id})">Excluir</button>
-      </td>
-    </tr>`;
-  }).join("");
-
-  const sel = document.getElementById("filtro-cliente");
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Todos os clientes</option>' +
-    clientes.map(c => `<option value="${c.id}"${c.id == cur ? " selected" : ""}>${c.nome}</option>`).join("");
-}
-
-async function abaterPagamento(clienteId, saldo) {
-  const inp = document.getElementById("pay-val-" + clienteId);
-  const valor = parseFloat(inp.value) || 0;
-  if (valor <= 0) { toast("Informe um valor válido."); return; }
-  if (valor > saldo) { toast("Valor maior que o saldo devedor."); return; }
-  await dbAdd("pagamentos", { clienteId, valor, data: new Date().toISOString() });
-  toast("Pagamento registrado.");
-  await renderClientes(); await renderHistorico();
-}
-
-async function quitarTudo(clienteId, saldo) {
-  if (!confirm("Quitar todo o saldo de R$ " + saldo.toFixed(2) + "?")) return;
-  await dbAdd("pagamentos", { clienteId, valor: saldo, data: new Date().toISOString() });
-  toast("Saldo quitado.");
-  await renderClientes(); await renderHistorico();
-}
-
-async function salvarCliente() {
-  const id = document.getElementById("edit-cliente-id").value;
-  const nome = document.getElementById("c-nome").value.trim();
-  if (!nome) { toast("Informe o nome do cliente."); return; }
-  if (id) {
-    const ex = await dbGetById("clientes", parseInt(id));
-    await dbPut("clientes", { ...ex, nome });
-    toast("Cliente updated.");
-  } else {
-    await dbAdd("clientes", { nome, data: new Date().toISOString() });
-    toast("Cliente adicionado.");
-  }
-  cancelarEdicaoCliente();
-  await renderClientes(); await atualizarSelects();
-}
-
-async function editarCliente(id) {
-  const c = await dbGetById("clientes", id);
-  document.getElementById("edit-cliente-id").value = id;
-  document.getElementById("c-nome").value = c.nome;
-  document.getElementById("cliente-title").textContent = "Editar cliente";
-  document.getElementById("c-nome").focus();
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function cancelarEdicaoCliente() {
-  document.getElementById("edit-cliente-id").value = "";
-  document.getElementById("c-nome").value = "";
-  document.getElementById("cliente-title").textContent = "Novo cliente";
-}
-
-async function deletarCliente(id) {
-  if (!confirm("Excluir este cliente?")) return;
-  await dbDelete("clientes", id);
-  toast("Cliente excluído."); await renderClientes(); await atualizarSelects();
-}
-
-// ─── PEDIDOS COM MULTIPLOS PRODUTOS ──────────────────────────────────────
-let itensPedido = []; 
-
-function adicionarItemPedido() {
-  const sel = document.getElementById("ped-produto");
-  const produtoId = parseInt(sel.value, 10);
-  const qty = parseInt(document.getElementById("ped-qty").value, 10) || 1;
-  
-  if (!produtoId) { toast("Selecione um produto."); return; }
-  const prod = produtos.find(p => p.id === produtoId);
-  if (!prod) return;
-
-  const existente = itensPedido.find(i => i.produtoId === produtoId);
-  const jaAdicionado = existente ? existente.quantidade : 0;
-
-  if (jaAdicionado + qty > prod.quantidade) { 
-    toast("Estoque insuficiente para " + prod.nome + "."); 
-    return; 
-  }
-
-  if (existente) {
-    existente.quantidade += qty;
-  } else {
-    itensPedido.push({ 
-      produtoId: produtoId, 
-      nome: prod.nome, 
-      preco: prod.preco, 
-      quantidade: qty 
-    });
-  }
-  
-  document.getElementById("ped-produto").value = "";
-  document.getElementById("ped-qty").value = "1";
-  renderItensPedido();
-}
-
-function removerItemPedido(produtoId) {
-  itensPedido = itensPedido.filter(i => i.produtoId != produtoId);
-  renderItensPedido();
-}
-
-function renderItensPedido() {
-  const lista = document.getElementById("itens-lista");
-  const resumo = document.getElementById("resumo-pedido");
-  const resumoItens = document.getElementById("resumo-itens");
-  const resumoTotal = document.getElementById("resumo-total");
-
-  if (!itensPedido.length) {
-    lista.innerHTML = '<span style="font-size:13px;color:#94a3b8">Nenhum produto adicionado ainda.</span>';
-    resumo.style.display = "none";
-    return;
-  }
-
-  lista.innerHTML = itensPedido.map(i =>
-    `<span class="item-tag">
-      ${i.nome} (x${i.quantidade}) &mdash; R$ ${(i.preco * i.quantidade).toFixed(2)}
-      <button onclick="removerItemPedido(${i.produtoId})">&#10005;</button>
-    </span>`
-  ).join("");
-
-  const total = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
-  resumoItens.innerHTML = itensPedido.map(i =>
-    `<div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#475569;">
-      <span>${i.nome} <b>x${i.quantidade}</b></span>
-      <span>R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
-    </div>`
-  ).join("");
-  resumoTotal.innerHTML = `<span>Valor Total:</span> <span style="float:right">R$ ${total.toFixed(2)}</span>`;
-  resumo.style.display = "block";
-}
-
-async function fazerPedido() {
-  const clienteId = parseInt(document.getElementById("ped-cliente").value);
-  const forma = document.getElementById("ped-forma").value;
-  const parcelas = parseInt(document.getElementById("ped-parcelas").value) || 1;
-  const valorPago = parseFloat(document.getElementById("ped-pago").value) || 0;
-
-  if (!clienteId) { toast("Selecione um cliente."); return; }
-  if (!itensPedido.length) { toast("Adicione pelo menos um produto."); return; }
-
-  const valorTotal = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
-
-  await dbAdd("pedidos", {
-    clienteId,
-    itens: itensPedido.map(i => ({ produtoId: i.produtoId, nome: i.nome, preco: i.preco, quantidade: i.quantidade })),
-    produtoId: null,
-    quantidade: itensPedido.reduce((s, i) => s + i.quantidade, 0),
-    valorTotal,
-    valorPago,
-    parcelas,
-    formaPagamento: forma,
-    data: new Date().toISOString()
-  });
-
-  for (const item of itensPedido) {
-    const prod = await dbGetById("produtos", item.produtoId);
-    if (prod) await dbPut("produtos", { ...prod, quantidade: prod.quantidade - item.quantidade });
-  }
-
-  toast("Pedido registrado com sucesso.");
-  limparPedido();
-  await renderAll();
-}
-
-function limparPedido() {
-  document.getElementById("ped-cliente").value = "";
-  document.getElementById("ped-produto").value = "";
-  document.getElementById("ped-qty").value = "1";
-  document.getElementById("ped-forma").value = "dinheiro";
-  document.getElementById("ped-parcelas").value = "1";
-  document.getElementById("ped-pago").value = "0";
-  itensPedido = [];
-  renderItensPedido();
-}
-
-// ─── HISTORICO ────────────────────────────────────────────────────────────
-async function renderHistorico() {
-  produtos = await dbGetAll("produtos");
-  clientes = await dbGetAll("clientes");
-  pedidos = await dbGetAll("pedidos");
-  pagamentos = await dbGetAll("pagamentos");
-  const filtro = document.getElementById("filtro-cliente").value;
-  const tbody = document.getElementById("tbody-historico");
-  const lista = filtro ? pedidos.filter(p => p.clienteId == filtro) : pedidos;
-
-  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhum pedido registrado.</td></tr>'; return; }
-
-  tbody.innerHTML = lista.map(ped => {
-    const c = clientes.find(x => x.id == ped.clienteId);
-    let produtosDesc = "";
-    if (ped.itens && ped.itens.length) {
-      produtosDesc = ped.itens.map(i => `${i.nome} (x${i.quantidade})`).join(", ");
-    } else {
-      const pr = produtos.find(x => x.id == ped.produtoId);
-      produtosDesc = pr ? `${pr.nome} (x${ped.quantidade})` : "—";
-    }
-
-    const pago = ped.valorPago >= ped.valorTotal;
-    const data = new Date(ped.data).toLocaleDateString("pt-BR");
-    return `<tr>
-      <td style="color: #64748b;">${data}</td>
-      <td style="font-weight: 500;">${c ? c.nome : "—"}</td>
-      <td style="max-width:240px; font-size:13px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${produtosDesc}">${produtosDesc}</td>
-      <td style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
-      <td>R$ ${ped.valorPago.toFixed(2)}</td>
-      <td><span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:12px">${ped.parcelas}x</span></td>
-      <td style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
-      <td><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span></td>
-    </tr>`;
-  }).join("");
-}
-
-async function atualizarSelects() {
-  produtos = await dbGetAll("produtos");
-  clientes = await dbGetAll("clientes");
-  document.getElementById("ped-cliente").innerHTML =
-    '<option value="">Selecione...</option>' +
-    clientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join("");
-  document.getElementById("ped-produto").innerHTML =
-    '<option value="">Selecione...</option>' +
-    produtos.map(p => `<option value="${p.id}">${p.nome} (${p.quantidade} un.) — R$ ${p.preco.toFixed(2)}</option>`).join("");
-}
-</script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
