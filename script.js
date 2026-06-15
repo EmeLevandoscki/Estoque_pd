@@ -1,4 +1,4 @@
-// script.js — VERSÃO FINAL CORRIGIDA E FUNCIONAL
+// script.js — VERSÃO FINAL COMPLETA (com resumo financeiro, descrição otimizada e todos os campos)
 
 const firebaseConfig = {
   apiKey: "AIzaSyCJNQEACZMM7C90J0LcLwPF7LWGvd2xdu0",
@@ -18,7 +18,6 @@ const NOMES_FIXOS = ["Emelly Levandoscki", "Taina Pinheiro Pomatti"];
 let timersFechamento = {};
 
 // --- CATEGORIAS ---
-
 function carregarCategorias() {
   const categorias = localStorage.getItem('categorias');
   return categorias ? JSON.parse(categorias) : [];
@@ -141,7 +140,7 @@ async function adicionarCategoria() {
   }
   salvarCategoria(novaCategoria);
   atualizarInterfaceCategorias();
-  atualizarFiltroCategoriaEstoque(); // ✅ CORREÇÃO: Atualiza o filtro de estoque com a nova categoria
+  atualizarFiltroCategoriaEstoque();
   fecharModalCategoria();
   toast(`Categoria "${novaCategoria}" adicionada!`);
 }
@@ -199,7 +198,6 @@ function filtrarCategoria(categoria) {
 }
 
 // --- SEGURANÇA ---
-
 function inicializarSeguranca() {
   const titulo = document.getElementById("lock-titulo");
   const subtitulo = document.getElementById("lock-subtitulo");
@@ -237,7 +235,6 @@ function bloquearSistema() {
 }
 
 // --- INICIALIZAÇÃO ---
-
 window.addEventListener("DOMContentLoaded", function() {
   if (sessionStorage.getItem('sistemaDesbloqueado') === 'true') {
     desbloquearApp();
@@ -247,7 +244,6 @@ window.addEventListener("DOMContentLoaded", function() {
 });
 
 // --- SINCRONIZAÇÃO EM TEMPO REAL ---
-
 function ativarSincronizacaoEmTempoReal() {
   dbFS.collection("produtos").orderBy("nome", "asc").onSnapshot(snapshot => {
     produtos = snapshot.docs.map(doc => ({
@@ -256,7 +252,8 @@ function ativarSincronizacaoEmTempoReal() {
     }));
     renderEstoque();
     atualizarInterfaceCategorias();
-    atualizarFiltroCategoriaEstoque(); // ✅ Garante que o filtro de estoque esteja atualizado desde o início
+    atualizarFiltroCategoriaEstoque();
+    atualizarResumoFinanceiro();
   });
 
   dbFS.collection("clientes").orderBy("nome", "asc").onSnapshot(snapshot => {
@@ -275,6 +272,7 @@ function ativarSincronizacaoEmTempoReal() {
     }));
     renderClientes();
     renderHistorico();
+    atualizarResumoFinanceiro();
   });
 
   dbFS.collection("pagamentos").onSnapshot(snapshot => {
@@ -284,6 +282,7 @@ function ativarSincronizacaoEmTempoReal() {
     }));
     renderClientes();
     renderHistorico();
+    atualizarResumoFinanceiro();
   });
 
   setTimeout(async () => {
@@ -305,7 +304,6 @@ function ativarSincronizacaoEmTempoReal() {
 }
 
 // --- TOAST ---
-
 function toast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -314,7 +312,6 @@ function toast(msg) {
 }
 
 // --- ABAS ---
-
 function showTab(name, btn) {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -323,37 +320,50 @@ function showTab(name, btn) {
 }
 
 // --- ESTOQUE ---
-
 function renderEstoque() {
   const tbody = document.getElementById("tbody-estoque");
   if (!produtos.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum produto cadastrado.</td></tr>';
-    atualizarFiltroCategoriaEstoque(); // Atualiza os botões de categoria
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum produto cadastrado.</td></tr>';
+    atualizarFiltroCategoriaEstoque();
     return;
   }
   tbody.innerHTML = produtos.map(p => {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
-    const precoFinal = p.preco || 0;
+    const custoFinal = p.precoCusto !== null ? p.precoCusto : 0;
+    const precoFinal = p.precoVenda !== null ? p.precoVenda : 0;
+    const emPromocao = p.emPromocao === "sim";
+    const descricao = p.descricao || "";
+    const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
+    const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
+    const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
+    const promoTag = emPromocao ? '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;"> promo</span>' : '';
     return `
-    <tr>
-      <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-      <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
-      <td>
-        <div class="qty-ctrl">
-          <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-          <span class="qty-num">${qtdFinal}</span>
-          <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-        </div>
-      </td>
-      <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
-      <td class="actions">
-        <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-        <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-      </td>
-    </tr>
+      <tr>
+        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+        <td>
+          <div class="qty-ctrl">
+            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
+            <span class="qty-num">${qtdFinal}</span>
+            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
+          </div>
+        </td>
+        <td style="font-weight: 500; font-size: 13px;">
+          ${precoCustoExibido}<br>
+          ${precoVendaExibido} ${promoTag}
+        </td>
+        <td style="font-size: 13px; color: #64748b; max-width: 120px; word-wrap: break-word; cursor: pointer;" onclick="mostrarDescricao('${p.id}', '${descricao.replace(/'/g, "\\'")}')">
+          ${descricaoResumo}
+        </td>
+        <td class="actions">
+          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
+          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
+        </td>
+      </tr>
     `;
   }).join("");
   atualizarFiltroCategoriaEstoque();
+  atualizarResumoFinanceiro();
 }
 
 async function ajustarQty(id, delta) {
@@ -371,18 +381,26 @@ async function salvarProduto() {
   const nome = document.getElementById("p-nome").value.trim();
   const cat = document.getElementById("p-cat").value.trim();
   const qty = parseInt(document.getElementById("p-qty").value) || 0;
-  const preco = parseFloat(document.getElementById("p-preco").value) || 0;
+  const custo = parseFloat(document.getElementById("p-custo").value) || null;
+  const preco = parseFloat(document.getElementById("p-preco").value) || null;
+  const promocao = document.getElementById("p-promocao").value || null;
+  const descricao = document.getElementById("p-descricao").value.trim() || null;
+
   if (!nome || !cat) {
     toast("Preencha nome e categoria.");
     return;
   }
   salvarCategoria(cat);
+
   if (id) {
     await dbFS.collection("produtos").doc(id).update({
       nome,
       categoria: cat,
       quantidade: qty,
-      preco
+      precoCusto: custo,
+      precoVenda: preco,
+      emPromocao: promocao,
+      descricao: descricao
     });
     toast("Produto atualizado.");
   } else {
@@ -390,7 +408,10 @@ async function salvarProduto() {
       nome,
       categoria: cat,
       quantidade: qty,
-      preco,
+      precoCusto: custo,
+      precoVenda: preco,
+      emPromocao: promocao,
+      descricao: descricao,
       data: new Date().toISOString()
     });
     toast("Produto adicionado.");
@@ -402,11 +423,20 @@ async function salvarProduto() {
 function editarProduto(id) {
   const p = produtos.find(prod => prod.id === id);
   const qtdAtual = p.quantidade !== undefined ? p.quantidade : 0;
+  const custo = p.precoCusto || 0;
+  const preco = p.precoVenda || 0;
+  const promocao = p.emPromocao || "";
+  const descricao = p.descricao || "";
+
   document.getElementById("edit-produto-id").value = id;
   document.getElementById("p-nome").value = p.nome || '';
   document.getElementById("p-cat").value = p.categoria || '';
   document.getElementById("p-qty").value = qtdAtual;
-  document.getElementById("p-preco").value = p.preco || 0;
+  document.getElementById("p-custo").value = custo;
+  document.getElementById("p-preco").value = preco;
+  document.getElementById("p-promocao").value = promocao;
+  document.getElementById("p-descricao").value = descricao;
+
   document.getElementById("estoque-title").textContent = "Editar produto";
   document.getElementById("p-nome").focus();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -417,7 +447,10 @@ function cancelarEdicaoProduto() {
   document.getElementById("p-nome").value = "";
   document.getElementById("p-cat").value = "";
   document.getElementById("p-qty").value = "0";
+  document.getElementById("p-custo").value = "0";
   document.getElementById("p-preco").value = "0";
+  document.getElementById("p-promocao").value = "";
+  document.getElementById("p-descricao").value = "";
   document.getElementById("estoque-title").textContent = "Novo produto";
   document.getElementById('categoria-sugestoes').style.display = 'none';
 }
@@ -429,12 +462,12 @@ async function deletarProduto(id) {
 }
 
 // --- CLIENTES ---
-
 function renderClientes() {
   const tbody = document.getElementById("tbody-clientes");
   const clientesFixos = [];
   const clientesComPendencia = [];
   const clientesSemPendencia = [];
+
   clientes.forEach(cliente => {
     const totalPedidos = pedidos
       .filter(p => p.clienteId === cliente.id)
@@ -442,9 +475,11 @@ function renderClientes() {
     const totalPago = pedidos
       .filter(p => p.clienteId === cliente.id)
       .reduce((s, p) => s + p.valorPago, 0) +
-      pagamentos.filter(pg => pg.clienteId === cliente.id)
-        .reduce((s, pg) => s + pg.valor, 0);
+      pagamentos
+      .filter(pg => pg.clienteId === cliente.id)
+      .reduce((s, pg) => s + pg.valor, 0);
     const saldo = Math.max(0, totalPedidos - totalPago);
+
     if (NOMES_FIXOS.includes(cliente.nome)) {
       clientesFixos.push({ ...cliente, saldo });
     } else if (saldo > 0) {
@@ -453,26 +488,33 @@ function renderClientes() {
       clientesSemPendencia.push({ ...cliente, saldo });
     }
   });
+
   const ordenadosFixos = clientesFixos.sort((a, b) => {
     const indexA = NOMES_FIXOS.indexOf(a.nome);
     const indexB = NOMES_FIXOS.indexOf(b.nome);
     return indexA - indexB;
   });
+
   const ordenadosPendencia = clientesComPendencia.sort((a, b) => {
     return a.nome.localeCompare(b.nome);
   });
+
   const ordenadosSemPendencia = clientesSemPendencia.sort((a, b) => {
     return a.nome.localeCompare(b.nome);
   });
+
   const clientesOrdenados = [
     ...ordenadosFixos,
     ...ordenadosPendencia,
     ...ordenadosSemPendencia
   ];
+
   if (!clientesOrdenados.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum cliente cadastrado.</td></tr>';
+    atualizarResumoFinanceiro();
     return;
   }
+
   tbody.innerHTML = clientesOrdenados.map(c => {
     const totalPedidos = pedidos
       .filter(p => p.clienteId === c.id)
@@ -480,66 +522,71 @@ function renderClientes() {
     const totalPago = pedidos
       .filter(p => p.clienteId === c.id)
       .reduce((s, p) => s + p.valorPago, 0) +
-      pagamentos.filter(pg => pg.clienteId === c.id)
-        .reduce((s, pg) => s + pg.valor, 0);
+      pagamentos
+      .filter(pg => pg.clienteId === c.id)
+      .reduce((s, pg) => s + pg.valor, 0);
     const saldo = Math.max(0, totalPedidos - totalPago);
     const saldoClass = saldo === 0 ? "saldo-zero" : "saldo-pos";
     const pedidosComDivida = (saldo <= 0) ? [] : pedidos.filter(p => {
       if (p.clienteId !== c.id) return false;
       return p.valorPago < p.valorTotal;
     });
+
     return `
-    <tr class="client-row" id="linha-cliente-${c.id}">
-      <td style="font-weight: 600; color: #0f172a;">
-        <div class="client-name" id="trigger-${c.id}" onclick="toggleHistorico('${c.id}')">
-          ${c.nome} <span class="arrow">▼</span>
-        </div>
-        <div class="client-history" id="historico-${c.id}">
-          <h4>Dívida Atual Detalhada</h4>
-          ${pedidosComDivida.length > 0 ? pedidosComDivida.map(p => {
-            const restandoNoPedido = p.valorTotal - p.valorPago;
-            const produtosDesc = p.itens.map(i => {
+      <tr class="client-row" id="linha-cliente-${c.id}">
+        <td style="font-weight: 600; color: #0f172a;">
+          <div class="client-name" id="trigger-${c.id}" onclick="toggleHistorico('${c.id}')">
+            ${c.nome} <span class="arrow">▼</span>
+          </div>
+          <div class="client-history" id="historico-${c.id}">
+            <h4>Dívida Atual Detalhada</h4>
+            ${pedidosComDivida.length > 0 ? pedidosComDivida.map(p => {
+              const restandoNoPedido = p.valorTotal - p.valorPago;
+              const produtosDesc = p.itens.map(i => {
+                return `
+                  <div class="history-item">
+                    <span class="prod-name">${i.nome || 'Produto'} (${i.categoria || 'Geral'})</span>
+                    <span class="prod-qty">x${i.quantidade || 0}</span>
+                    <span class="prod-total">R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
+                  </div>
+                `;
+              }).join('');
+              const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
               return `
-              <div class="history-item">
-                <span class="prod-name">${i.nome || 'Produto'} (${i.categoria || 'Geral'})</span>
-                <span class="prod-qty">x${i.quantidade || 0}</span>
-                <span class="prod-total">R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
-              </div>
+                <div style="border-bottom: 1px dashed #fef08a; padding: 8px 0; margin-bottom: 4px;">
+                  <div style="font-size: 12px; color: #713f12; margin-bottom: 4px;">
+                    <strong>Pedido em ${data}</strong> (Pendente: R$ ${restandoNoPedido.toFixed(2)})
+                  </div>
+                  ${produtosDesc}
+                </div>
               `;
-            }).join('');
-            const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
-            return `
-            <div style="border-bottom: 1px dashed #fef08a; padding: 8px 0; margin-bottom: 4px;">
-              <div style="font-size: 12px; color: #713f12; margin-bottom: 4px;">
-                <strong>Pedido em ${data}</strong> (Pendente: R$ ${restandoNoPedido.toFixed(2)})
-              </div>
-              ${produtosDesc}
+            }).join('') : '<div class="history-item" style="color: #10b981; font-weight: 600; padding: 4px 0;">Nenhum produto pendente de pagamento!</div>'}
+          </div>
+        </td>
+        <td class="${saldoClass}">R$ ${saldo.toFixed(2)}</td>
+        <td>
+          ${saldo > 0 ? `
+            <div class="pay-row">
+              <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$">
+              <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
+              <button class="sm primary" onclick="quitarTudo('${c.id}', ${saldo})">Quitar tudo</button>
             </div>
-            `;
-          }).join('') : '<div class="history-item" style="color: #10b981; font-weight: 600; padding: 4px 0;">Nenhum produto pendente de pagamento!</div>'}
-        </div>
-      </td>
-      <td class="${saldoClass}">R$ ${saldo.toFixed(2)}</td>
-      <td>
-        ${saldo > 0 ? `
-        <div class="pay-row">
-          <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$">
-          <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
-          <button class="sm primary" onclick="quitarTudo('${c.id}', ${saldo})">Quitar tudo</button>
-        </div>
-        ` : '<span class="badge badge-ok">Sem dívida</span>'}
-      </td>
-      <td class="actions">
-        <button class="sm" onclick="editarCliente('${c.id}')">Editar</button>
-        <button class="sm danger" onclick="deletarCliente('${c.id}')">Excluir</button>
-      </td>
-    </tr>
+          ` : '<span class="badge badge-ok">Sem dívida</span>'}
+        </td>
+        <td class="actions">
+          <button class="sm" onclick="editarCliente('${c.id}')">Editar</button>
+          <button class="sm danger" onclick="deletarCliente('${c.id}')">Excluir</button>
+        </td>
+      </tr>
     `;
   }).join("");
+
   const sel = document.getElementById("filtro-cliente");
   const cur = sel.value;
   sel.innerHTML = '<option value="">Todos os clientes</option>' +
     clientesOrdenados.map(c => `<option value="${c.id}"${c.id === cur ? " selected" : ""}>${c.nome}</option>`).join("");
+
+  atualizarResumoFinanceiro();
 }
 
 function toggleHistorico(clienteId) {
@@ -636,7 +683,6 @@ async function deletarCliente(id) {
 }
 
 // --- PEDIDOS ---
-
 let itensPedido = [];
 
 function adicionarItemPedido() {
@@ -662,7 +708,7 @@ function adicionarItemPedido() {
     itensPedido.push({
       produtoId: produtoId,
       nome: prod.nome,
-      preco: prod.preco || 0,
+      preco: prod.precoVenda || 0,
       quantidade: qty,
       categoria: prod.categoria || 'Geral'
     });
@@ -682,17 +728,20 @@ function renderItensPedido() {
   const resumo = document.getElementById("resumo-pedido");
   const resumoItens = document.getElementById("resumo-itens");
   const resumoTotal = document.getElementById("resumo-total");
+
   if (!itensPedido.length) {
     lista.innerHTML = '<span style="font-size:13px;color:#94a3b8">Nenhum produto adicionado ainda.</span>';
     resumo.style.display = "none";
     return;
   }
+
   lista.innerHTML = itensPedido.map(i => `
     <span class="item-tag">
       ${i.nome} (x${i.quantidade}) &mdash; R$ ${(i.preco * i.quantidade).toFixed(2)}
       <button onclick="removerItemPedido('${i.produtoId}')">&#10005;</button>
     </span>
   `).join("");
+
   const total = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
   resumoItens.innerHTML = itensPedido.map(i => `
     <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#475569;">
@@ -700,6 +749,7 @@ function renderItensPedido() {
       <span>R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
     </div>
   `).join("");
+
   resumoTotal.innerHTML = `<span>Valor Total:</span> <span style="float:right">R$ ${total.toFixed(2)}</span>`;
   resumo.style.display = "block";
 }
@@ -709,6 +759,7 @@ async function fazerPedido() {
   const forma = document.getElementById("ped-forma").value;
   const parcelas = parseInt(document.getElementById("ped-parcelas").value) || 1;
   const valorPago = parseFloat(document.getElementById("ped-pago").value) || 0;
+
   if (!clienteId) {
     toast("Selecione um cliente.");
     return;
@@ -717,7 +768,9 @@ async function fazerPedido() {
     toast("Adicione pelo menos um produto.");
     return;
   }
+
   const valorTotal = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
+
   await dbFS.collection("pedidos").add({
     clienteId,
     itens: itensPedido.map(i => ({
@@ -734,6 +787,7 @@ async function fazerPedido() {
     formaPagamento: forma,
     data: new Date().toISOString()
   });
+
   for (const item of itensPedido) {
     const prod = produtos.find(p => p.id === item.produtoId);
     if (prod) {
@@ -743,6 +797,7 @@ async function fazerPedido() {
       });
     }
   }
+
   toast("Pedido registrado em rede com sucesso.");
   limparPedido();
 }
@@ -759,16 +814,18 @@ function limparPedido() {
 }
 
 // --- HISTÓRICO ---
-
 function renderHistorico() {
   const filtro = document.getElementById("filtro-cliente").value;
   const tbody = document.getElementById("tbody-historico");
   const lista = pedidos;
+
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhum pedido registrado.</td></tr>';
     return;
   }
+
   const filtrados = filtro ? lista.filter(p => p.clienteId === filtro) : lista;
+
   tbody.innerHTML = filtrados.map(ped => {
     const c = clientes.find(x => x.id === ped.clienteId);
     let produtosDesc = "";
@@ -780,24 +837,22 @@ function renderHistorico() {
     const pago = ped.valorPago >= ped.valorTotal;
     const data = ped.data ? new Date(ped.data).toLocaleDateString("pt-BR") : "—";
     return `
-    <tr>
-      <td style="color: #64748b;">${data}</td>
-      <td style="font-weight: 500;">${c ? c.nome : "—"}</td>
-      <td style="max-width:240px; font-size:13px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${produtosDesc}">${produtosDesc}</td>
-      <td style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
-      <td>R$ ${ped.valorPago.toFixed(2)}</td>
-      <td><span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:12px">${ped.parcelas}x</span></td>
-      <td style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
-      <td><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span></td>
-    </tr>
+      <tr>
+        <td style="color: #64748b;">${data}</td>
+        <td style="font-weight: 500;">${c ? c.nome : "—"}</td>
+        <td style="max-width:240px; font-size:13px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${produtosDesc}">${produtosDesc}</td>
+        <td style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
+        <td>R$ ${ped.valorPago.toFixed(2)}</td>
+        <td><span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:12px">${ped.parcelas}x</span></td>
+        <td style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
+        <td><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span></td>
+      </tr>
     `;
   }).join("");
 }
 
 // --- SELECTS ---
-
 function atualizarSelects() {
-  // Atualiza select de clientes (mantém a seleção atual)
   const pedCliente = document.getElementById("ped-cliente");
   if (pedCliente) {
     const valorAtual = pedCliente.value;
@@ -811,7 +866,6 @@ function atualizarSelects() {
     });
   }
 
-  // Atualiza select de produtos (mantém a seleção atual)
   const pedProduto = document.getElementById("ped-produto");
   if (pedProduto) {
     const valorAtualProduto = pedProduto.value;
@@ -821,7 +875,7 @@ function atualizarSelects() {
     const produtosFiltrados = !categoriaFiltrada ? produtos : produtos.filter(p => p.categoria === categoriaFiltrada);
     produtosFiltrados.forEach(p => {
       const qtdAtual = p.quantidade !== undefined ? p.quantidade : 0;
-      const precoFinal = p.preco || 0;
+      const precoFinal = p.precoVenda || 0;
       const categoria = p.categoria ? ` (${p.categoria})` : '';
       const option = document.createElement('option');
       option.value = p.id;
@@ -833,7 +887,6 @@ function atualizarSelects() {
 }
 
 // --- EVENTOS DE TECLADO ---
-
 function handleEnterKey(event, nextFieldId) {
   if (event.key === 'Enter') {
     event.preventDefault();
@@ -855,7 +908,6 @@ function handleEnterKey(event, nextFieldId) {
 }
 
 // --- EVENTOS GLOBAIS ---
-
 document.addEventListener('click', function(e) {
   const sugestoes = document.getElementById('categoria-sugestoes');
   const input = document.getElementById('p-cat');
@@ -872,50 +924,59 @@ if (modalCat) {
 }
 
 // ✅ FUNÇÃO DE BUSCA EM TEMPO REAL — FORA DE QUALQUER EVENTO
-
 function filtrarEstoque() {
   const busca = document.getElementById('busca-produto').value.toLowerCase().trim();
   const tbody = document.getElementById('tbody-estoque');
   const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(busca));
   if (produtosFiltrados.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum produto encontrado.</td></tr>';
     return;
   }
   tbody.innerHTML = produtosFiltrados.map(p => {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
-    const precoFinal = p.preco || 0;
+    const custoFinal = p.precoCusto !== null ? p.precoCusto : 0;
+    const precoFinal = p.precoVenda !== null ? p.precoVenda : 0;
+    const emPromocao = p.emPromocao === "sim";
+    const descricao = p.descricao || "";
+    const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
+    const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
+    const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
+    const promoTag = emPromocao ? '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;"> promo</span>' : '';
     return `
-    <tr>
-      <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-      <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
-      <td>
-        <div class="qty-ctrl">
-          <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-          <span class="qty-num">${qtdFinal}</span>
-          <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-        </div>
-      </td>
-      <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
-      <td class="actions">
-        <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-        <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-      </td>
-    </tr>
+      <tr>
+        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+        <td>
+          <div class="qty-ctrl">
+            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
+            <span class="qty-num">${qtdFinal}</span>
+            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
+          </div>
+        </td>
+        <td style="font-weight: 500; font-size: 13px;">
+          ${precoCustoExibido}<br>
+          ${precoVendaExibido} ${promoTag}
+        </td>
+        <td style="font-size: 13px; color: #64748b; max-width: 120px; word-wrap: break-word; cursor: pointer;" onclick="mostrarDescricao('${p.id}', '${descricao.replace(/'/g, "\\'")}')">
+          ${descricaoResumo}
+        </td>
+        <td class="actions">
+          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
+          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
+        </td>
+      </tr>
     `;
   }).join("");
 }
 
 // ✅ FUNÇÃO DE FILTRO POR CATEGORIA (ESTOQUE) — FORA DE QUALQUER EVENTO
-
 function filtrarCategoriaEstoque(categoria) {
-  // Atualiza botões ativos
   document.querySelectorAll('#filtro-categoria-estoque .category-button').forEach(btn => {
     btn.classList.remove('active');
   });
   const btnAtivo = Array.from(document.querySelectorAll('#filtro-categoria-estoque .category-button')).find(btn => btn.textContent === categoria);
   if (btnAtivo) btnAtivo.classList.add('active');
 
-  // Atualiza a lista de produtos
   const busca = document.getElementById('busca-produto').value.toLowerCase().trim();
   const tbody = document.getElementById('tbody-estoque');
   let produtosFiltrados = produtos;
@@ -926,43 +987,52 @@ function filtrarCategoriaEstoque(categoria) {
     produtosFiltrados = produtosFiltrados.filter(p => p.nome.toLowerCase().includes(busca));
   }
   if (produtosFiltrados.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum produto encontrado.</td></tr>';
     return;
   }
   tbody.innerHTML = produtosFiltrados.map(p => {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
-    const precoFinal = p.preco || 0;
+    const custoFinal = p.precoCusto !== null ? p.precoCusto : 0;
+    const precoFinal = p.precoVenda !== null ? p.precoVenda : 0;
+    const emPromocao = p.emPromocao === "sim";
+    const descricao = p.descricao || "";
+    const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
+    const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
+    const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
+    const promoTag = emPromocao ? '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;"> promo</span>' : '';
     return `
-    <tr>
-      <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-      <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
-      <td>
-        <div class="qty-ctrl">
-          <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-          <span class="qty-num">${qtdFinal}</span>
-          <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-        </div>
-      </td>
-      <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
-      <td class="actions">
-        <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-        <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-      </td>
-    </tr>
+      <tr>
+        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+        <td>
+          <div class="qty-ctrl">
+            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
+            <span class="qty-num">${qtdFinal}</span>
+            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
+          </div>
+        </td>
+        <td style="font-weight: 500; font-size: 13px;">
+          ${precoCustoExibido}<br>
+          ${precoVendaExibido} ${promoTag}
+        </td>
+        <td style="font-size: 13px; color: #64748b; max-width: 120px; word-wrap: break-word; cursor: pointer;" onclick="mostrarDescricao('${p.id}', '${descricao.replace(/'/g, "\\'")}')">
+          ${descricaoResumo}
+        </td>
+        <td class="actions">
+          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
+          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
+        </td>
+      </tr>
     `;
   }).join("");
 }
 
 // ✅ FUNÇÃO CORRIGIDA: ATUALIZA OS BOTÕES DE CATEGORIA NO ESTOQUE — BASEADA EM CATEGORIAS SALVAS, NÃO SÓ EM PRODUTOS
-
 function atualizarFiltroCategoriaEstoque() {
   const container = document.getElementById('filtro-categoria-estoque');
   if (!container) return;
 
-  // 🚨 BASE PRINCIPAL: todas as categorias que o usuário criou (localStorage)
   const categoriasSalvas = carregarCategorias();
-
-  // Adiciona categorias que já têm produtos (para garantir que nenhuma seja perdida)
   const categoriasComProdutos = new Set();
   produtos.forEach(p => {
     if (p.categoria && p.categoria.trim()) {
@@ -970,10 +1040,8 @@ function atualizarFiltroCategoriaEstoque() {
     }
   });
 
-  // ✅ COMBINA: categorias salvas + categorias com produtos (sem duplicatas)
   const todasCategorias = [...new Set([...categoriasSalvas, ...categoriasComProdutos])];
 
-  // Limpa e recria os botões
   container.innerHTML = '<button class="category-button active" onclick="filtrarCategoriaEstoque(\'todos\')">Todas</button>';
   todasCategorias.forEach(cat => {
     const btn = document.createElement('button');
@@ -984,8 +1052,75 @@ function atualizarFiltroCategoriaEstoque() {
   });
 }
 
-// 🔐 BOTÃO SECRETO DE LIMPEZA — Ative com Ctrl + Alt + P
+// ✅ FUNÇÃO: MOSTRAR DESCRIÇÃO COMPLETA EM MODAL
+function mostrarDescricao(id, descricaoCompleta) {
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100%';
+  modal.style.height = '100%';
+  modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+  modal.style.display = 'flex';
+  modal.style.alignItems = 'center';
+  modal.style.justifyContent = 'center';
+  modal.style.zIndex = '9999';
+  modal.style.padding = '20px';
+  modal.innerHTML = `
+    <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+      <h3 style="margin-top: 0; color: #0f172a;">Descrição do Produto</h3>
+      <p style="font-size: 15px; line-height: 1.6; margin-bottom: 1.5rem; color: #334155;">${descricaoCompleta || 'Sem descrição.'}</p>
+      <button onclick="this.parentElement.parentElement.remove()" style="background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
 
+// ✅ FUNÇÃO: ATUALIZAR RESUMO FINANCEIRO (Clientes)
+function atualizarResumoFinanceiro() {
+  // Total a receber (dívidas de clientes)
+  let totalReceber = 0;
+  clientes.forEach(cliente => {
+    const totalPedidos = pedidos
+      .filter(p => p.clienteId === cliente.id)
+      .reduce((s, p) => s + p.valorTotal, 0);
+    const totalPago = pedidos
+      .filter(p => p.clienteId === cliente.id)
+      .reduce((s, p) => s + p.valorPago, 0) +
+      pagamentos
+      .filter(pg => pg.clienteId === cliente.id)
+      .reduce((s, pg) => s + pg.valor, 0);
+    const saldo = Math.max(0, totalPedidos - totalPago);
+    totalReceber += saldo;
+  });
+
+  // Valor total em estoque (venda)
+  let totalEstoque = 0;
+  produtos.forEach(p => {
+    const precoVenda = p.precoVenda || 0;
+    const quantidade = p.quantidade || 0;
+    totalEstoque += precoVenda * quantidade;
+  });
+
+  // Valor total gasto (custo)
+  let totalCusto = 0;
+  produtos.forEach(p => {
+    const precoCusto = p.precoCusto || 0;
+    const quantidade = p.quantidade || 0;
+    totalCusto += precoCusto * quantidade;
+  });
+
+  // Lucro estimado
+  const lucroEstimado = totalEstoque - totalCusto;
+
+  // Atualiza os elementos na interface
+  document.getElementById("resumo-receber").textContent = `R$ ${totalReceber.toFixed(2)}`;
+  document.getElementById("resumo-estoque").textContent = `R$ ${totalEstoque.toFixed(2)}`;
+  document.getElementById("resumo-custo").textContent = `R$ ${totalCusto.toFixed(2)}`;
+  document.getElementById("resumo-lucro").textContent = `R$ ${lucroEstimado.toFixed(2)}`;
+}
+
+// 🔐 BOTÃO SECRETO DE LIMPEZA — Ative com Ctrl + Alt + P
 window.addEventListener('keydown', async (e) => {
   if (e.key === 'p' && e.ctrlKey && e.altKey) {
     e.preventDefault();

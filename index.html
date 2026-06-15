@@ -24,61 +24,79 @@
 
     <div class="tabs">
       <button class="tab-btn active" onclick="showTab('estoque', this)">Estoque</button>
-
-            <button class="tab-btn" onclick="showTab('pedidos', this)">Pedidos</button>
-
+      <button class="tab-btn" onclick="showTab('pedidos', this)">Pedidos</button>
       <button class="tab-btn" onclick="showTab('clientes', this)">Clientes</button>
-
       <button class="tab-btn" onclick="showTab('historico', this)">Histórico</button>
     </div>
 
     <!-- PAINEL DE ESTOQUE ATUALIZADO -->
-<div id="estoque" class="panel active">
-  <h2 id="estoque-title">Novo produto</h2>
-  <input type="hidden" id="edit-produto-id">
-  <div class="form-row">
-    <div class="form-group">
-      <label>Nome</label>
-      <input id="p-nome" placeholder="Ex: Batom Vermelho" onkeydown="handleEnterKey(event, 'p-cat')">
+    <div id="estoque" class="panel active">
+      <h2 id="estoque-title">Novo produto</h2>
+      <input type="hidden" id="edit-produto-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome</label>
+          <input id="p-nome" placeholder="Ex: Batom Vermelho" onkeydown="handleEnterKey(event, 'p-cat')">
+        </div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <input id="p-cat" placeholder="Ex: Maquiagem" onkeydown="handleCategoryKey(event)" autocomplete="off">
+          <div class="category-suggestions" id="categoria-sugestoes"></div>
+          <div class="category-buttons" id="botoes-rapidos-categoria"> </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantidade</label><input type="number" id="p-qty" value="0" min="0" onkeydown="handleEnterKey(event, 'p-custo')"></div>
+        <div class="form-group"><label>Preço de custo (R$)</label><input type="number" id="p-custo" value="0" step="0.01" min="0" onkeydown="handleEnterKey(event, 'p-preco')"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Preço de venda (R$)</label><input type="number" id="p-preco" value="0" step="0.01" min="0" onkeydown="handleEnterKey(event, 'p-promocao')"></div>
+        <div class="form-group">
+          <label>Em promoção?</label>
+          <select id="p-promocao" onkeydown="handleEnterKey(event, 'p-descricao')">
+            <option value="">Não</option>
+            <option value="sim">Sim</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição do produto</label>
+        <textarea id="p-descricao" placeholder="Ex: Batom hidratante, cor vermelho vinho, durabilidade de 8h" rows="3" onkeydown="handleEnterKey(event, 'salvar-produto')"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="primary" onclick="salvarProduto()" id="salvar-produto">Salvar produto</button>
+        <button onclick="cancelarEdicaoProduto()">Cancelar</button>
+      </div>
+
+      <div class="form-group" style="margin: 2rem 0 1.5rem; padding: 0;">
+        <label>Buscar produto</label>
+        <input type="text" id="busca-produto" placeholder="Digite o nome do produto..." oninput="filtrarEstoque()" style="padding: 12px; font-size: 14px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%;">
+      </div>
+
+      <h3 style="margin: 1.8rem 0 0.8rem; color: #475569; font-size: 14px;">Filtrar por categoria</h3>
+      <div class="category-filter" id="filtro-categoria-estoque">
+        <button class="category-button active" onclick="filtrarCategoriaEstoque('todos')">Todas</button>
+      </div>
+
+      <h3>Produtos cadastrados</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Categoria</th>
+              <th>Quantidade</th>
+              <th>Preço</th>
+              <th>Descrição</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-estoque"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Categoria</label>
-      <input id="p-cat" placeholder="Ex: Maquiagem" onkeydown="handleCategoryKey(event)" autocomplete="off">
-      <div class="category-suggestions" id="categoria-sugestoes"></div>
-      <div class="category-buttons" id="botoes-rapidos-categoria"> </div>
-    </div>
-  </div>
-  <div class="form-row">
-    <div class="form-group"><label>Quantidade</label><input type="number" id="p-qty" value="0" min="0" onkeydown="handleEnterKey(event, 'p-preco')"></div>
-    <div class="form-group"><label>Preço unitário (R$)</label><input type="number" id="p-preco" value="0" step="0.01" min="0" onkeydown="handleEnterKey(event, 'salvar-produto')"></div>
-  </div>
-  <div class="btn-row">
-    <button class="primary" onclick="salvarProduto()" id="salvar-produto">Salvar produto</button>
-    <button onclick="cancelarEdicaoProduto()">Cancelar</button>
-  </div>
 
-  <!-- ✅ ADICIONADO AQUI — NÃO REMOVIDO NADA -->
-  <div class="form-group" style="margin: 2rem 0 1.5rem; padding: 0;">
-    <label>Buscar produto</label>
-    <input type="text" id="busca-produto" placeholder="Digite o nome do produto..." oninput="filtrarEstoque()" style="padding: 12px; font-size: 14px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%;">
-  </div>
-
-  <h3 style="margin: 1.8rem 0 0.8rem; color: #475569; font-size: 14px;">Filtrar por categoria</h3>
-  <div class="category-filter" id="filtro-categoria-estoque">
-    <button class="category-button active" onclick="filtrarCategoriaEstoque('todos')">Todas</button>
-  </div>
-
-  <!-- ✅ TUDO O QUE ESTAVA AQUI CONTINUA IGUAL -->
-  <h3>Produtos cadastrados</h3>
-  <div class="tbl-wrap">
-    <table>
-      <thead><tr><th>Produto</th><th>Categoria</th><th>Quantidade</th><th>Preço</th><th>Ações</th></tr></thead>
-      <tbody id="tbody-estoque"></tbody>
-    </table>
-  </div>
-</div>
-
-    <!-- PAINEL DE CLIENTES (inalterado) -->
+    <!-- PAINEL DE CLIENTES ATUALIZADO -->
     <div id="clientes" class="panel">
       <h2 id="cliente-title">Novo cliente</h2>
       <input type="hidden" id="edit-cliente-id">
@@ -92,6 +110,30 @@
         <button class="primary" onclick="salvarCliente()" id="salvar-cliente">Salvar cliente</button>
         <button onclick="cancelarEdicaoCliente()">Cancelar</button>
       </div>
+
+      <!-- ✅ RESUMO FINANCEIRO -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0 1rem; font-size: 14px;">
+        <h3 style="color: #0f172a; margin-top: 0; margin-bottom: 1rem;"> Resumo Financeiro</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-weight: 500;">
+          <div style="background: #e0f2fe; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="color: #0369a1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Total a receber</div>
+            <div id="resumo-receber" style="font-size: 18px; color: #ef4444; margin-top: 4px;">R$ 0,00</div>
+          </div>
+          <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="color: #059669; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Valor em estoque</div>
+            <div id="resumo-estoque" style="font-size: 18px; color: #10b981; margin-top: 4px;">R$ 0,00</div>
+          </div>
+          <div style="background: #fef3f2; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="color: #dc2626; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Total gasto (custo)</div>
+            <div id="resumo-custo" style="font-size: 18px; color: #ef4444; margin-top: 4px;">R$ 0,00</div>
+          </div>
+          <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="color: #374151; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Lucro estimado</div>
+            <div id="resumo-lucro" style="font-size: 18px; color: #059669; margin-top: 4px;">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+
       <h3>Clientes cadastrados</h3>
       <div class="tbl-wrap">
         <table>
