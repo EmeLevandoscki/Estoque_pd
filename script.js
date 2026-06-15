@@ -18,6 +18,7 @@ const NOMES_FIXOS = ["Emelly Levandoscki", "Taina Pinheiro Pomatti"];
 let timersFechamento = {};
 
 // --- CATEGORIAS ---
+
 function carregarCategorias() {
   const categorias = localStorage.getItem('categorias');
   return categorias ? JSON.parse(categorias) : [];
@@ -42,11 +43,11 @@ async function removerCategoria(event, categoria) {
     alert(`Não é possível excluir! Existem produtos cadastrados no seu estoque vinculados à categoria "${categoria}". Mude a categoria ou exclua os produtos primeiro.`);
     return;
   }
-  const categorias = carregarCategorias();
-  const index = categorias.indexOf(categoria);
+  const categoriasArray = carregarCategorias();
+  const index = categoriasArray.indexOf(categoria);
   if (index > -1) {
-    categorias.splice(index, 1);
-    localStorage.setItem('categorias', JSON.stringify(categorias));
+    categoriasArray.splice(index, 1);
+    localStorage.setItem('categorias', JSON.stringify(categoriasArray));
   }
   atualizarInterfaceCategorias();
   toast(`Categoria "${categoria}" removida.`);
@@ -140,6 +141,7 @@ async function adicionarCategoria() {
   }
   salvarCategoria(novaCategoria);
   atualizarInterfaceCategorias();
+  atualizarFiltroCategoriaEstoque(); // ✅ CORREÇÃO: Atualiza o filtro de estoque com a nova categoria
   fecharModalCategoria();
   toast(`Categoria "${novaCategoria}" adicionada!`);
 }
@@ -197,6 +199,7 @@ function filtrarCategoria(categoria) {
 }
 
 // --- SEGURANÇA ---
+
 function inicializarSeguranca() {
   const titulo = document.getElementById("lock-titulo");
   const subtitulo = document.getElementById("lock-subtitulo");
@@ -234,6 +237,7 @@ function bloquearSistema() {
 }
 
 // --- INICIALIZAÇÃO ---
+
 window.addEventListener("DOMContentLoaded", function() {
   if (sessionStorage.getItem('sistemaDesbloqueado') === 'true') {
     desbloquearApp();
@@ -243,6 +247,7 @@ window.addEventListener("DOMContentLoaded", function() {
 });
 
 // --- SINCRONIZAÇÃO EM TEMPO REAL ---
+
 function ativarSincronizacaoEmTempoReal() {
   dbFS.collection("produtos").orderBy("nome", "asc").onSnapshot(snapshot => {
     produtos = snapshot.docs.map(doc => ({
@@ -251,7 +256,9 @@ function ativarSincronizacaoEmTempoReal() {
     }));
     renderEstoque();
     atualizarInterfaceCategorias();
+    atualizarFiltroCategoriaEstoque(); // ✅ Garante que o filtro de estoque esteja atualizado desde o início
   });
+
   dbFS.collection("clientes").orderBy("nome", "asc").onSnapshot(snapshot => {
     clientes = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -260,6 +267,7 @@ function ativarSincronizacaoEmTempoReal() {
     renderClientes();
     atualizarInterfaceCategorias();
   });
+
   dbFS.collection("pedidos").onSnapshot(snapshot => {
     pedidos = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -268,6 +276,7 @@ function ativarSincronizacaoEmTempoReal() {
     renderClientes();
     renderHistorico();
   });
+
   dbFS.collection("pagamentos").onSnapshot(snapshot => {
     pagamentos = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -296,6 +305,7 @@ function ativarSincronizacaoEmTempoReal() {
 }
 
 // --- TOAST ---
+
 function toast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -304,6 +314,7 @@ function toast(msg) {
 }
 
 // --- ABAS ---
+
 function showTab(name, btn) {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -312,6 +323,7 @@ function showTab(name, btn) {
 }
 
 // --- ESTOQUE ---
+
 function renderEstoque() {
   const tbody = document.getElementById("tbody-estoque");
   if (!produtos.length) {
@@ -319,31 +331,28 @@ function renderEstoque() {
     atualizarFiltroCategoriaEstoque(); // Atualiza os botões de categoria
     return;
   }
-  // Renderiza a lista completa
   tbody.innerHTML = produtos.map(p => {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
     const precoFinal = p.preco || 0;
     return `
-      <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
-        <td>
-          <div class="qty-ctrl">
-            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-            <span class="qty-num">${qtdFinal}</span>
-            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-          </div>
-        </td>
-        <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
-        <td class="actions">
-          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-        </td>
-      </tr>
+    <tr>
+      <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+      <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+      <td>
+        <div class="qty-ctrl">
+          <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
+          <span class="qty-num">${qtdFinal}</span>
+          <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
+        </div>
+      </td>
+      <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
+      <td class="actions">
+        <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
+        <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
+      </td>
+    </tr>
     `;
   }).join("");
-
-  // Atualiza os botões de categoria
   atualizarFiltroCategoriaEstoque();
 }
 
@@ -352,7 +361,9 @@ async function ajustarQty(id, delta) {
   if (!p) return;
   const qtdAtual = p.quantidade !== undefined ? p.quantidade : 0;
   const novaQty = Math.max(0, qtdAtual + delta);
-  await dbFS.collection("produtos").doc(id).update({ quantidade: novaQty });
+  await dbFS.collection("produtos").doc(id).update({
+    quantidade: novaQty
+  });
 }
 
 async function salvarProduto() {
@@ -367,10 +378,21 @@ async function salvarProduto() {
   }
   salvarCategoria(cat);
   if (id) {
-    await dbFS.collection("produtos").doc(id).update({ nome, categoria: cat, quantidade: qty, preco });
+    await dbFS.collection("produtos").doc(id).update({
+      nome,
+      categoria: cat,
+      quantidade: qty,
+      preco
+    });
     toast("Produto atualizado.");
   } else {
-    await dbFS.collection("produtos").add({ nome, categoria: cat, quantidade: qty, preco, data: new Date().toISOString() });
+    await dbFS.collection("produtos").add({
+      nome,
+      categoria: cat,
+      quantidade: qty,
+      preco,
+      data: new Date().toISOString()
+    });
     toast("Produto adicionado.");
   }
   atualizarInterfaceCategorias();
@@ -407,6 +429,7 @@ async function deletarProduto(id) {
 }
 
 // --- CLIENTES ---
+
 function renderClientes() {
   const tbody = document.getElementById("tbody-clientes");
   const clientesFixos = [];
@@ -466,54 +489,53 @@ function renderClientes() {
       return p.valorPago < p.valorTotal;
     });
     return `
-      <tr class="client-row" id="linha-cliente-${c.id}">
-        <td style="font-weight: 600; color: #0f172a;">
-          <div class="client-name" id="trigger-${c.id}" onclick="toggleHistorico('${c.id}')">
-            ${c.nome} <span class="arrow">▼</span>
-          </div>
-          <div class="client-history" id="historico-${c.id}">
-            <h4>Dívida Atual Detalhada</h4>
-            ${pedidosComDivida.length > 0 ? pedidosComDivida.map(p => {
-              const restandoNoPedido = p.valorTotal - p.valorPago;
-              const produtosDesc = p.itens.map(i => {
-                return `
-                  <div class="history-item">
-                    <span class="prod-name">${i.nome || 'Produto'} (${i.categoria || 'Geral'})</span>
-                    <span class="prod-qty">x${i.quantidade || 0}</span>
-                    <span class="prod-total">R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
-                  </div>
-                `;
-              }).join('');
-              const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
+    <tr class="client-row" id="linha-cliente-${c.id}">
+      <td style="font-weight: 600; color: #0f172a;">
+        <div class="client-name" id="trigger-${c.id}" onclick="toggleHistorico('${c.id}')">
+          ${c.nome} <span class="arrow">▼</span>
+        </div>
+        <div class="client-history" id="historico-${c.id}">
+          <h4>Dívida Atual Detalhada</h4>
+          ${pedidosComDivida.length > 0 ? pedidosComDivida.map(p => {
+            const restandoNoPedido = p.valorTotal - p.valorPago;
+            const produtosDesc = p.itens.map(i => {
               return `
-                <div style="border-bottom: 1px dashed #fef08a; padding: 8px 0; margin-bottom: 4px;">
-                  <div style="font-size: 12px; color: #713f12; margin-bottom: 4px;">
-                    <strong>Pedido em ${data}</strong> (Pendente: R$ ${restandoNoPedido.toFixed(2)})
-                  </div>
-                  ${produtosDesc}
-                </div>
+              <div class="history-item">
+                <span class="prod-name">${i.nome || 'Produto'} (${i.categoria || 'Geral'})</span>
+                <span class="prod-qty">x${i.quantidade || 0}</span>
+                <span class="prod-total">R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
+              </div>
               `;
-            }).join('') : '<div class="history-item" style="color: #10b981; font-weight: 600; padding: 4px 0;">Nenhum produto pendente de pagamento!</div>'}
-          </div>
-        </td>
-        <td class="${saldoClass}">R$ ${saldo.toFixed(2)}</td>
-        <td>
-          ${saldo > 0 ? `
-            <div class="pay-row">
-              <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$">
-              <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
-              <button class="sm primary" onclick="quitarTudo('${c.id}', ${saldo})">Quitar tudo</button>
+            }).join('');
+            const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
+            return `
+            <div style="border-bottom: 1px dashed #fef08a; padding: 8px 0; margin-bottom: 4px;">
+              <div style="font-size: 12px; color: #713f12; margin-bottom: 4px;">
+                <strong>Pedido em ${data}</strong> (Pendente: R$ ${restandoNoPedido.toFixed(2)})
+              </div>
+              ${produtosDesc}
             </div>
-          ` : '<span class="badge badge-ok">Sem dívida</span>'}
-        </td>
-        <td class="actions">
-          <button class="sm" onclick="editarCliente('${c.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarCliente('${c.id}')">Excluir</button>
-        </td>
-      </tr>
+            `;
+          }).join('') : '<div class="history-item" style="color: #10b981; font-weight: 600; padding: 4px 0;">Nenhum produto pendente de pagamento!</div>'}
+        </div>
+      </td>
+      <td class="${saldoClass}">R$ ${saldo.toFixed(2)}</td>
+      <td>
+        ${saldo > 0 ? `
+        <div class="pay-row">
+          <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$">
+          <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
+          <button class="sm primary" onclick="quitarTudo('${c.id}', ${saldo})">Quitar tudo</button>
+        </div>
+        ` : '<span class="badge badge-ok">Sem dívida</span>'}
+      </td>
+      <td class="actions">
+        <button class="sm" onclick="editarCliente('${c.id}')">Editar</button>
+        <button class="sm danger" onclick="deletarCliente('${c.id}')">Excluir</button>
+      </td>
+    </tr>
     `;
   }).join("");
-
   const sel = document.getElementById("filtro-cliente");
   const cur = sel.value;
   sel.innerHTML = '<option value="">Todos os clientes</option>' +
@@ -552,13 +574,21 @@ async function abaterPagamento(clienteId, saldo) {
     toast("Valor maior que o saldo devedor.");
     return;
   }
-  await dbFS.collection("pagamentos").add({ clienteId, valor, data: new Date().toISOString() });
+  await dbFS.collection("pagamentos").add({
+    clienteId,
+    valor,
+    data: new Date().toISOString()
+  });
   toast("Pagamento registrado em rede.");
 }
 
 async function quitarTudo(clienteId, saldo) {
   if (!confirm("Quitar todo o saldo de R$ " + saldo.toFixed(2) + "?")) return;
-  await dbFS.collection("pagamentos").add({ clienteId, valor: saldo, data: new Date().toISOString() });
+  await dbFS.collection("pagamentos").add({
+    clienteId,
+    valor: saldo,
+    data: new Date().toISOString()
+  });
   toast("Saldo quitado com sucesso.");
 }
 
@@ -570,10 +600,15 @@ async function salvarCliente() {
     return;
   }
   if (id) {
-    await dbFS.collection("clientes").doc(id).update({ nome });
+    await dbFS.collection("clientes").doc(id).update({
+      nome
+    });
     toast("Cliente atualizado.");
   } else {
-    await dbFS.collection("clientes").add({ nome, data: new Date().toISOString() });
+    await dbFS.collection("clientes").add({
+      nome,
+      data: new Date().toISOString()
+    });
     toast("Cliente adicionado.");
   }
   cancelarEdicaoCliente();
@@ -601,6 +636,7 @@ async function deletarCliente(id) {
 }
 
 // --- PEDIDOS ---
+
 let itensPedido = [];
 
 function adicionarItemPedido() {
@@ -702,7 +738,9 @@ async function fazerPedido() {
     const prod = produtos.find(p => p.id === item.produtoId);
     if (prod) {
       const qtdAtual = prod.quantidade !== undefined ? prod.quantidade : 0;
-      await dbFS.collection("produtos").doc(item.produtoId).update({ quantidade: Math.max(0, qtdAtual - item.quantidade) });
+      await dbFS.collection("produtos").doc(item.produtoId).update({
+        quantidade: Math.max(0, qtdAtual - item.quantidade)
+      });
     }
   }
   toast("Pedido registrado em rede com sucesso.");
@@ -721,6 +759,7 @@ function limparPedido() {
 }
 
 // --- HISTÓRICO ---
+
 function renderHistorico() {
   const filtro = document.getElementById("filtro-cliente").value;
   const tbody = document.getElementById("tbody-historico");
@@ -741,21 +780,22 @@ function renderHistorico() {
     const pago = ped.valorPago >= ped.valorTotal;
     const data = ped.data ? new Date(ped.data).toLocaleDateString("pt-BR") : "—";
     return `
-      <tr>
-        <td style="color: #64748b;">${data}</td>
-        <td style="font-weight: 500;">${c ? c.nome : "—"}</td>
-        <td style="max-width:240px; font-size:13px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${produtosDesc}">${produtosDesc}</td>
-        <td style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
-        <td>R$ ${ped.valorPago.toFixed(2)}</td>
-        <td><span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:12px">${ped.parcelas}x</span></td>
-        <td style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
-        <td><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span></td>
-      </tr>
+    <tr>
+      <td style="color: #64748b;">${data}</td>
+      <td style="font-weight: 500;">${c ? c.nome : "—"}</td>
+      <td style="max-width:240px; font-size:13px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${produtosDesc}">${produtosDesc}</td>
+      <td style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
+      <td>R$ ${ped.valorPago.toFixed(2)}</td>
+      <td><span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:12px">${ped.parcelas}x</span></td>
+      <td style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
+      <td><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span></td>
+    </tr>
     `;
   }).join("");
 }
 
 // --- SELECTS ---
+
 function atualizarSelects() {
   // Atualiza select de clientes (mantém a seleção atual)
   const pedCliente = document.getElementById("ped-cliente");
@@ -793,6 +833,7 @@ function atualizarSelects() {
 }
 
 // --- EVENTOS DE TECLADO ---
+
 function handleEnterKey(event, nextFieldId) {
   if (event.key === 'Enter') {
     event.preventDefault();
@@ -814,6 +855,7 @@ function handleEnterKey(event, nextFieldId) {
 }
 
 // --- EVENTOS GLOBAIS ---
+
 document.addEventListener('click', function(e) {
   const sugestoes = document.getElementById('categoria-sugestoes');
   const input = document.getElementById('p-cat');
@@ -830,6 +872,7 @@ if (modalCat) {
 }
 
 // ✅ FUNÇÃO DE BUSCA EM TEMPO REAL — FORA DE QUALQUER EVENTO
+
 function filtrarEstoque() {
   const busca = document.getElementById('busca-produto').value.toLowerCase().trim();
   const tbody = document.getElementById('tbody-estoque');
@@ -842,27 +885,28 @@ function filtrarEstoque() {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
     const precoFinal = p.preco || 0;
     return `
-      <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
-        <td>
-          <div class="qty-ctrl">
-            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-            <span class="qty-num">${qtdFinal}</span>
-            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-          </div>
-        </td>
-        <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
-        <td class="actions">
-          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-        </td>
-      </tr>
+    <tr>
+      <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+      <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+      <td>
+        <div class="qty-ctrl">
+          <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
+          <span class="qty-num">${qtdFinal}</span>
+          <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
+        </div>
+      </td>
+      <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
+      <td class="actions">
+        <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
+        <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
+      </td>
+    </tr>
     `;
   }).join("");
 }
 
 // ✅ FUNÇÃO DE FILTRO POR CATEGORIA (ESTOQUE) — FORA DE QUALQUER EVENTO
+
 function filtrarCategoriaEstoque(categoria) {
   // Atualiza botões ativos
   document.querySelectorAll('#filtro-categoria-estoque .category-button').forEach(btn => {
@@ -889,46 +933,49 @@ function filtrarCategoriaEstoque(categoria) {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
     const precoFinal = p.preco || 0;
     return `
-      <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
-        <td>
-          <div class="qty-ctrl">
-            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-            <span class="qty-num">${qtdFinal}</span>
-            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-          </div>
-        </td>
-        <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
-        <td class="actions">
-          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-        </td>
-      </tr>
+    <tr>
+      <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+      <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+      <td>
+        <div class="qty-ctrl">
+          <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
+          <span class="qty-num">${qtdFinal}</span>
+          <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
+        </div>
+      </td>
+      <td style="font-weight: 500;">R$ ${precoFinal.toFixed(2)}</td>
+      <td class="actions">
+        <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
+        <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
+      </td>
+    </tr>
     `;
   }).join("");
 }
 
-// ✅ ATUALIZA OS BOTÕES DE CATEGORIA NO ESTOQUE (ao carregar ou atualizar) — FORA DE QUALQUER EVENTO
+// ✅ FUNÇÃO CORRIGIDA: ATUALIZA OS BOTÕES DE CATEGORIA NO ESTOQUE — BASEADA EM CATEGORIAS SALVAS, NÃO SÓ EM PRODUTOS
+
 function atualizarFiltroCategoriaEstoque() {
   const container = document.getElementById('filtro-categoria-estoque');
   if (!container) return;
 
-  // Pegar todas as categorias únicas dos produtos
-  const categorias = new Set();
+  // 🚨 BASE PRINCIPAL: todas as categorias que o usuário criou (localStorage)
+  const categoriasSalvas = carregarCategorias();
+
+  // Adiciona categorias que já têm produtos (para garantir que nenhuma seja perdida)
+  const categoriasComProdutos = new Set();
   produtos.forEach(p => {
     if (p.categoria && p.categoria.trim()) {
-      categorias.add(p.categoria.trim());
+      categoriasComProdutos.add(p.categoria.trim());
     }
   });
 
-  // Adicionar categorias fixas se quiser (opcional)
-  const categoriasFixas = ['Natura', 'O Boticário', 'Eudora'];
-  categoriasFixas.forEach(cat => categorias.add(cat));
+  // ✅ COMBINA: categorias salvas + categorias com produtos (sem duplicatas)
+  const todasCategorias = [...new Set([...categoriasSalvas, ...categoriasComProdutos])];
 
   // Limpa e recria os botões
   container.innerHTML = '<button class="category-button active" onclick="filtrarCategoriaEstoque(\'todos\')">Todas</button>';
-  categorias.forEach(cat => {
+  todasCategorias.forEach(cat => {
     const btn = document.createElement('button');
     btn.className = 'category-button';
     btn.textContent = cat;
@@ -938,6 +985,7 @@ function atualizarFiltroCategoriaEstoque() {
 }
 
 // 🔐 BOTÃO SECRETO DE LIMPEZA — Ative com Ctrl + Alt + P
+
 window.addEventListener('keydown', async (e) => {
   if (e.key === 'p' && e.ctrlKey && e.altKey) {
     e.preventDefault();
