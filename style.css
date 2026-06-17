@@ -1,4 +1,4 @@
-/* style.css — VERSÃO ORIGINAL + RESPONSIVIDADE ADICIONADA (sem mudar design) */
+/* style.css — VERSÃO FINAL COMPLETA */
 * {
   margin: 0;
   padding: 0;
@@ -18,53 +18,6 @@ body {
   max-width: 1040px;
   margin: 0 auto;
   display: none;
-}
-
-/* Estilo para o modal de descrição */
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 20px;
-}
-
-.modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  max-width: 500px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-}
-
-.modal-content h3 {
-  margin-top: 0;
-  color: #0f172a;
-}
-
-.modal-content p {
-  font-size: 15px;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-  color: #334155;
-}
-
-.modal-content button {
-  background: #6366f1;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
 }
 
 .lock-screen {
@@ -200,6 +153,7 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  position: relative;
 }
 
 label {
@@ -208,7 +162,7 @@ label {
   color: #475569;
 }
 
-input, select {
+input, select, textarea {
   font-size: 14px;
   padding: 10px 14px;
   border: 1px solid #cbd5e1;
@@ -217,9 +171,11 @@ input, select {
   color: #1e293b;
   width: 100%;
   transition: all 0.2s ease;
+  font-family: inherit;
+  resize: vertical;
 }
 
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: #6366f1;
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
@@ -346,6 +302,34 @@ tr:hover td {
 .badge-pend {
   background: #fef3c7;
   color: #92400e;
+}
+
+.badge-promo {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.cat-tag {
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.desc-cell {
+  font-size: 13px;
+  color: #64748b;
+  max-width: 120px;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+
+.desc-cell:hover {
+  color: #6366f1;
 }
 
 .qty-ctrl {
@@ -530,10 +514,6 @@ tr:hover td {
   background: #f1f5f9;
 }
 
-.form-group {
-  position: relative;
-}
-
 .category-buttons {
   display: flex;
   gap: 8px;
@@ -664,6 +644,46 @@ tr:hover td {
   font-size: 14px;
 }
 
+/* --- MODAL DE DESCRIÇÃO --- */
+.modal-desc-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-desc-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.modal-desc-content h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+.modal-desc-content p {
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  color: #334155;
+}
+
+/* --- CLIENTE --- */
 .client-history {
   margin-top: 12px;
   padding: 14px;
@@ -737,17 +757,222 @@ tr:hover td {
   transform: rotate(180deg);
 }
 
+/* --- CLIENTE HISTORY REDESIGN --- */
+.ch-section {
+  margin-bottom: 12px;
+}
+
+.ch-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.ch-pedidos-title {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ch-pagamentos-title {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.ch-pedido {
+  background: #fffef5;
+  border: 1px solid #fef08a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.ch-pedido-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #713f12;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #fef08a;
+}
+
+.ch-pedido-header span:first-child {
+  font-weight: 600;
+}
+
+.ch-pedido-header .badge {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+.ch-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: #451a03;
+}
+
+.ch-item-nome {
+  font-weight: 600;
+  flex: 1;
+}
+
+.ch-item-cat {
+  font-weight: 400;
+  color: #92400e;
+  font-size: 11px;
+}
+
+.ch-item-qty {
+  color: #6366f1;
+  font-weight: 600;
+  min-width: 28px;
+  text-align: center;
+}
+
+.ch-item-sub {
+  font-weight: 700;
+  color: #0f172a;
+  min-width: 70px;
+  text-align: right;
+  font-size: 11px;
+}
+
+.ch-pagamento {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px dashed #bbf7d0;
+  font-size: 12px;
+  width: 100%;
+}
+
+.ch-pagamento:last-child {
+  border-bottom: none;
+}
+
+.ch-pg-valor {
+  font-weight: 700;
+  color: #059669;
+}
+
+.ch-pg-forma {
+  background: #eff6ff;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.ch-pg-data {
+  color: #6b7280;
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.ch-pagamentos-list {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #bbf7d0;
+}
+
+/* ==================== */
+/* --- HISTÓRICO EXPANSÍVEL --- */
+.pedido-header {
+  cursor: pointer;
+}
+
+.pedido-header:hover td {
+  background: #f1f5f9;
+}
+
+.arrow-hist {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-size: 11px;
+  color: #64748b;
+  margin-left: 4px;
+}
+
+.pedido-detail td {
+  padding: 0 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.pedido-detail-wrap {
+  background: #f8fafc;
+  padding: 12px 20px;
+  border-left: 3px solid #6366f1;
+}
+
+.hist-item-detail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dashed #e2e8f0;
+  font-size: 13px;
+}
+
+.hist-item-detail:last-child {
+  border-bottom: none;
+}
+
+.hist-item-nome {
+  font-weight: 600;
+  color: #0f172a;
+  flex: 1;
+}
+
+.hist-item-cat {
+  font-weight: 400;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.hist-item-qty {
+  color: #6366f1;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: center;
+}
+
+.hist-item-preco {
+  color: #64748b;
+  font-size: 12px;
+  min-width: 80px;
+  text-align: right;
+}
+
+.hist-item-sub {
+  font-weight: 700;
+  color: #0f172a;
+  min-width: 80px;
+  text-align: right;
+}
+
 /* ==================== */
 /* === RESPONSIVIDADE === */
 /* ==================== */
 
 @media (max-width: 480px) {
-  /* Ajusta o layout de formulários para 1 coluna */
   .form-row {
     grid-template-columns: 1fr !important;
   }
 
-  /* Aumenta padding dos botões para toque fácil */
   button {
     padding: 14px 24px !important;
     min-height: 48px !important;
@@ -762,24 +987,20 @@ tr:hover td {
     width: 100% !important;
   }
 
-  /* Ajusta tabelas para evitar scroll horizontal */
   th, td {
     padding: 10px 12px !important;
     font-size: 13px !important;
   }
 
-  /* Ajusta a largura da tabela */
   table {
     min-width: 100% !important;
   }
 
-  /* Aumenta padding das abas */
   .tab-btn {
     padding: 10px 16px !important;
     font-size: 13px !important;
   }
 
-  /* Ajusta item-linha para caber no celular */
   .item-linha {
     grid-template-columns: 1fr 80px !important;
     gap: 10px !important;
@@ -790,7 +1011,6 @@ tr:hover td {
     font-size: 14px !important;
   }
 
-  /* Ajusta pay-row e item-tag */
   .pay-row input {
     width: 80px !important;
     padding: 8px !important;
@@ -811,7 +1031,6 @@ tr:hover td {
     padding: 0 0 0 6px !important;
   }
 
-  /* Ajusta categoria-suggestions para não sair da tela */
   .category-suggestions {
     width: 95% !important;
     left: 50% !important;
@@ -819,7 +1038,6 @@ tr:hover td {
     max-height: 180px !important;
   }
 
-  /* Ajusta modal para não ultrapassar tela */
   .modal-content {
     max-width: 90% !important;
     padding: 1.8rem !important;
@@ -838,7 +1056,6 @@ tr:hover td {
     font-size: 14px !important;
   }
 
-  /* Ajusta botões rápidos de categoria */
   .category-button {
     padding: 8px 16px !important;
     font-size: 13px !important;
@@ -854,13 +1071,11 @@ tr:hover td {
     font-size: 12px !important;
   }
 
-  /* Ajusta toast para não ficar muito largo */
   .toast {
     padding: 14px 20px !important;
     font-size: 15px !important;
   }
 
-  /* Ajusta ícones de ação */
   .qty-ctrl button {
     padding: 4px 10px !important;
   }
@@ -870,7 +1085,6 @@ tr:hover td {
     font-size: 14px !important;
   }
 
-  /* Ajusta o espaçamento geral */
   .panel {
     padding: 1.6rem !important;
   }
@@ -880,7 +1094,6 @@ tr:hover td {
     gap: 8px !important;
   }
 
-  /* Ajusta o layout de clientes e histórico */
   .client-history {
     padding: 12px !important;
   }
@@ -902,23 +1115,6 @@ tr:hover td {
     font-size: 14px !important;
   }
 
-  /* Ajusta o header */
-  .app-header {
-    flex-direction: column !important;
-    gap: 10px !important;
-  }
-
-  .app-header h1 {
-    font-size: 1.8rem !important;
-    text-align: center !important;
-  }
-
-  .app-header button {
-    padding: 10px 16px !important;
-    font-size: 14px !important;
-  }
-
-  /* Ajusta o título da página */
   h1, h2, h3 {
     margin-bottom: 1rem !important;
   }
@@ -935,7 +1131,6 @@ tr:hover td {
     font-size: 1rem !important;
   }
 
-  /* Ajusta o padding geral do corpo */
   body {
     padding: 1rem !important;
   }
@@ -944,7 +1139,6 @@ tr:hover td {
     padding: 0 !important;
   }
 
-  /* Ajusta o tamanho do input de senha */
   .lock-card input {
     font-size: 16px !important;
     padding: 16px !important;
@@ -955,12 +1149,20 @@ tr:hover td {
     font-size: 15px !important;
   }
 
-  /* Ajusta o tamanho do título da tela de bloqueio */
   .lock-card h2 {
     font-size: 1.6rem !important;
   }
 
   .lock-card p {
     font-size: 13px !important;
+  }
+
+  .desc-cell {
+    max-width: 80px !important;
+  }
+
+  .modal-desc-content {
+    max-width: 90% !important;
+    padding: 1.5rem !important;
   }
 }

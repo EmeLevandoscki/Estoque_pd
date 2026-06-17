@@ -1,4 +1,7 @@
-// script.js — VERSÃO FINAL COMPLETA (com resumo financeiro, descrição otimizada e todos os campos)
+// script.js — VERSÃO FINAL COMPLETA
+// Funcionalidades: estoque, pedidos, clientes, histórico, categorias dinâmicas,
+// descrição otimizada (modal), promoção, preço de custo/venda, resumo financeiro,
+// forma de pagamento no abatimento de dívida
 
 const firebaseConfig = {
   apiKey: "AIzaSyCJNQEACZMM7C90J0LcLwPF7LWGvd2xdu0",
@@ -17,7 +20,10 @@ const SENHA_CORRETA = "181022";
 const NOMES_FIXOS = ["Emelly Levandoscki", "Taina Pinheiro Pomatti"];
 let timersFechamento = {};
 
+// ============================================================
 // --- CATEGORIAS ---
+// ============================================================
+
 function carregarCategorias() {
   const categorias = localStorage.getItem('categorias');
   return categorias ? JSON.parse(categorias) : [];
@@ -37,8 +43,7 @@ async function removerCategoria(event, categoria) {
   const produtosNaNuvem = await dbFS.collection("produtos")
     .where("categoria", "==", categoria)
     .get();
-  const possuiProdutoNoEstoque = !produtosNaNuvem.empty;
-  if (possuiProdutoNoEstoque) {
+  if (!produtosNaNuvem.empty) {
     alert(`Não é possível excluir! Existem produtos cadastrados no seu estoque vinculados à categoria "${categoria}". Mude a categoria ou exclua os produtos primeiro.`);
     return;
   }
@@ -197,7 +202,10 @@ function filtrarCategoria(categoria) {
   atualizarSelects();
 }
 
+// ============================================================
 // --- SEGURANÇA ---
+// ============================================================
+
 function inicializarSeguranca() {
   const titulo = document.getElementById("lock-titulo");
   const subtitulo = document.getElementById("lock-subtitulo");
@@ -234,7 +242,10 @@ function bloquearSistema() {
   inicializarSeguranca();
 }
 
+// ============================================================
 // --- INICIALIZAÇÃO ---
+// ============================================================
+
 window.addEventListener("DOMContentLoaded", function() {
   if (sessionStorage.getItem('sistemaDesbloqueado') === 'true') {
     desbloquearApp();
@@ -243,13 +254,13 @@ window.addEventListener("DOMContentLoaded", function() {
   }
 });
 
+// ============================================================
 // --- SINCRONIZAÇÃO EM TEMPO REAL ---
+// ============================================================
+
 function ativarSincronizacaoEmTempoReal() {
   dbFS.collection("produtos").orderBy("nome", "asc").onSnapshot(snapshot => {
-    produtos = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    produtos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderEstoque();
     atualizarInterfaceCategorias();
     atualizarFiltroCategoriaEstoque();
@@ -257,29 +268,20 @@ function ativarSincronizacaoEmTempoReal() {
   });
 
   dbFS.collection("clientes").orderBy("nome", "asc").onSnapshot(snapshot => {
-    clientes = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    clientes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderClientes();
     atualizarInterfaceCategorias();
   });
 
   dbFS.collection("pedidos").onSnapshot(snapshot => {
-    pedidos = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    pedidos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderClientes();
     renderHistorico();
     atualizarResumoFinanceiro();
   });
 
   dbFS.collection("pagamentos").onSnapshot(snapshot => {
-    pagamentos = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    pagamentos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderClientes();
     renderHistorico();
     atualizarResumoFinanceiro();
@@ -303,7 +305,10 @@ function ativarSincronizacaoEmTempoReal() {
   }, 2000);
 }
 
+// ============================================================
 // --- TOAST ---
+// ============================================================
+
 function toast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -311,7 +316,10 @@ function toast(msg) {
   setTimeout(() => t.classList.remove("show"), 2200);
 }
 
+// ============================================================
 // --- ABAS ---
+// ============================================================
+
 function showTab(name, btn) {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -319,7 +327,10 @@ function showTab(name, btn) {
   btn.classList.add("active");
 }
 
+// ============================================================
 // --- ESTOQUE ---
+// ============================================================
+
 function renderEstoque() {
   const tbody = document.getElementById("tbody-estoque");
   if (!produtos.length) {
@@ -329,18 +340,19 @@ function renderEstoque() {
   }
   tbody.innerHTML = produtos.map(p => {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
-    const custoFinal = p.precoCusto !== null ? p.precoCusto : 0;
-    const precoFinal = p.precoVenda !== null ? p.precoVenda : 0;
+    const custoFinal = p.precoCusto || 0;
+    const precoFinal = p.precoVenda || 0;
     const emPromocao = p.emPromocao === "sim";
     const descricao = p.descricao || "";
     const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
     const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
     const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
-    const promoTag = emPromocao ? '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;"> promo</span>' : '';
+    const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
+    const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
     return `
       <tr>
         <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+        <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
         <td>
           <div class="qty-ctrl">
             <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
@@ -352,8 +364,8 @@ function renderEstoque() {
           ${precoCustoExibido}<br>
           ${precoVendaExibido} ${promoTag}
         </td>
-        <td style="font-size: 13px; color: #64748b; max-width: 120px; word-wrap: break-word; cursor: pointer;" onclick="mostrarDescricao('${p.id}', '${descricao.replace(/'/g, "\\'")}')">
-          ${descricaoResumo}
+        <td class="desc-cell" onclick="mostrarDescricao('${descricaoEsc}')">
+          ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
         </td>
         <td class="actions">
           <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
@@ -371,9 +383,7 @@ async function ajustarQty(id, delta) {
   if (!p) return;
   const qtdAtual = p.quantidade !== undefined ? p.quantidade : 0;
   const novaQty = Math.max(0, qtdAtual + delta);
-  await dbFS.collection("produtos").doc(id).update({
-    quantidade: novaQty
-  });
+  await dbFS.collection("produtos").doc(id).update({ quantidade: novaQty });
 }
 
 async function salvarProduto() {
@@ -394,24 +404,16 @@ async function salvarProduto() {
 
   if (id) {
     await dbFS.collection("produtos").doc(id).update({
-      nome,
-      categoria: cat,
-      quantidade: qty,
-      precoCusto: custo,
-      precoVenda: preco,
-      emPromocao: promocao,
-      descricao: descricao
+      nome, categoria: cat, quantidade: qty,
+      precoCusto: custo, precoVenda: preco,
+      emPromocao: promocao, descricao: descricao
     });
     toast("Produto atualizado.");
   } else {
     await dbFS.collection("produtos").add({
-      nome,
-      categoria: cat,
-      quantidade: qty,
-      precoCusto: custo,
-      precoVenda: preco,
-      emPromocao: promocao,
-      descricao: descricao,
+      nome, categoria: cat, quantidade: qty,
+      precoCusto: custo, precoVenda: preco,
+      emPromocao: promocao, descricao: descricao,
       data: new Date().toISOString()
     });
     toast("Produto adicionado.");
@@ -422,21 +424,14 @@ async function salvarProduto() {
 
 function editarProduto(id) {
   const p = produtos.find(prod => prod.id === id);
-  const qtdAtual = p.quantidade !== undefined ? p.quantidade : 0;
-  const custo = p.precoCusto || 0;
-  const preco = p.precoVenda || 0;
-  const promocao = p.emPromocao || "";
-  const descricao = p.descricao || "";
-
   document.getElementById("edit-produto-id").value = id;
   document.getElementById("p-nome").value = p.nome || '';
   document.getElementById("p-cat").value = p.categoria || '';
-  document.getElementById("p-qty").value = qtdAtual;
-  document.getElementById("p-custo").value = custo;
-  document.getElementById("p-preco").value = preco;
-  document.getElementById("p-promocao").value = promocao;
-  document.getElementById("p-descricao").value = descricao;
-
+  document.getElementById("p-qty").value = p.quantidade !== undefined ? p.quantidade : 0;
+  document.getElementById("p-custo").value = p.precoCusto || 0;
+  document.getElementById("p-preco").value = p.precoVenda || 0;
+  document.getElementById("p-promocao").value = p.emPromocao || "";
+  document.getElementById("p-descricao").value = p.descricao || "";
   document.getElementById("estoque-title").textContent = "Editar produto";
   document.getElementById("p-nome").focus();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -461,7 +456,10 @@ async function deletarProduto(id) {
   toast("Produto excluído.");
 }
 
+// ============================================================
 // --- CLIENTES ---
+// ============================================================
+
 function renderClientes() {
   const tbody = document.getElementById("tbody-clientes");
   const clientesFixos = [];
@@ -475,9 +473,8 @@ function renderClientes() {
     const totalPago = pedidos
       .filter(p => p.clienteId === cliente.id)
       .reduce((s, p) => s + p.valorPago, 0) +
-      pagamentos
-      .filter(pg => pg.clienteId === cliente.id)
-      .reduce((s, pg) => s + pg.valor, 0);
+      pagamentos.filter(pg => pg.clienteId === cliente.id)
+        .reduce((s, pg) => s + pg.valor, 0);
     const saldo = Math.max(0, totalPedidos - totalPago);
 
     if (NOMES_FIXOS.includes(cliente.nome)) {
@@ -490,24 +487,12 @@ function renderClientes() {
   });
 
   const ordenadosFixos = clientesFixos.sort((a, b) => {
-    const indexA = NOMES_FIXOS.indexOf(a.nome);
-    const indexB = NOMES_FIXOS.indexOf(b.nome);
-    return indexA - indexB;
+    return NOMES_FIXOS.indexOf(a.nome) - NOMES_FIXOS.indexOf(b.nome);
   });
+  const ordenadosPendencia = clientesComPendencia.sort((a, b) => a.nome.localeCompare(b.nome));
+  const ordenadosSemPendencia = clientesSemPendencia.sort((a, b) => a.nome.localeCompare(b.nome));
 
-  const ordenadosPendencia = clientesComPendencia.sort((a, b) => {
-    return a.nome.localeCompare(b.nome);
-  });
-
-  const ordenadosSemPendencia = clientesSemPendencia.sort((a, b) => {
-    return a.nome.localeCompare(b.nome);
-  });
-
-  const clientesOrdenados = [
-    ...ordenadosFixos,
-    ...ordenadosPendencia,
-    ...ordenadosSemPendencia
-  ];
+  const clientesOrdenados = [...ordenadosFixos, ...ordenadosPendencia, ...ordenadosSemPendencia];
 
   if (!clientesOrdenados.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum cliente cadastrado.</td></tr>';
@@ -519,48 +504,100 @@ function renderClientes() {
     const totalPedidos = pedidos
       .filter(p => p.clienteId === c.id)
       .reduce((s, p) => s + p.valorTotal, 0);
-    const totalPago = pedidos
+    const totalPagoPedidos = pedidos
       .filter(p => p.clienteId === c.id)
-      .reduce((s, p) => s + p.valorPago, 0) +
-      pagamentos
+      .reduce((s, p) => s + p.valorPago, 0);
+    const totalAbatimentos = pagamentos
       .filter(pg => pg.clienteId === c.id)
       .reduce((s, pg) => s + pg.valor, 0);
+    const totalPago = totalPagoPedidos + totalAbatimentos;
     const saldo = Math.max(0, totalPedidos - totalPago);
     const saldoClass = saldo === 0 ? "saldo-zero" : "saldo-pos";
-    const pedidosComDivida = (saldo <= 0) ? [] : pedidos.filter(p => {
-      if (p.clienteId !== c.id) return false;
-      return p.valorPago < p.valorTotal;
+
+    // Pedidos do cliente (do mais recente para o mais antigo)
+    const pedidosDoCliente = pedidos
+      .filter(p => p.clienteId === c.id)
+      .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    // ✅ DISTRIBUIÇÃO CORRETA DE ABATIMENTOS:
+    // Ordena pedidos do mais antigo para o mais novo e distribui os abatimentos
+    // sequencialmente — cada pedido recebe o que sobra do anterior
+    const pedidosOrdenados = [...pedidosDoCliente].sort((a, b) => new Date(a.data) - new Date(b.data));
+    let abatimentosRestantes = totalAbatimentos;
+    const saldoPorPedido = {};
+    pedidosOrdenados.forEach(p => {
+      const jaPagoNoPedido = p.valorPago || 0;
+      const restantePedido = Math.max(0, p.valorTotal - jaPagoNoPedido);
+      const abatimentoParaEste = Math.min(restantePedido, abatimentosRestantes);
+      abatimentosRestantes = Math.max(0, abatimentosRestantes - abatimentoParaEste);
+      saldoPorPedido[p.id] = Math.max(0, p.valorTotal - jaPagoNoPedido - abatimentoParaEste);
     });
+
+    // Filtra APENAS pedidos pendentes (saldo > 0)
+    const pedidosPendentes = pedidosDoCliente.filter(p => (saldoPorPedido[p.id] || 0) > 0);
 
     return `
       <tr class="client-row" id="linha-cliente-${c.id}">
         <td style="font-weight: 600; color: #0f172a;">
           <div class="client-name" id="trigger-${c.id}" onclick="toggleHistorico('${c.id}')">
-            ${c.nome} <span class="arrow">▼</span>
+            ${c.nome} ${pedidosPendentes.length > 0 ? '<span class="badge badge-pend" style="font-size:11px; margin-left:6px;">' + pedidosPendentes.length + ' pendente' + (pedidosPendentes.length > 1 ? 's' : '') + '</span>' : ''} <span class="arrow">▼</span>
           </div>
           <div class="client-history" id="historico-${c.id}">
-            <h4>Dívida Atual Detalhada</h4>
-            ${pedidosComDivida.length > 0 ? pedidosComDivida.map(p => {
-              const restandoNoPedido = p.valorTotal - p.valorPago;
-              const produtosDesc = p.itens.map(i => {
-                return `
-                  <div class="history-item">
-                    <span class="prod-name">${i.nome || 'Produto'} (${i.categoria || 'Geral'})</span>
-                    <span class="prod-qty">x${i.quantidade || 0}</span>
-                    <span class="prod-total">R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
-                  </div>
-                `;
-              }).join('');
-              const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
-              return `
-                <div style="border-bottom: 1px dashed #fef08a; padding: 8px 0; margin-bottom: 4px;">
-                  <div style="font-size: 12px; color: #713f12; margin-bottom: 4px;">
-                    <strong>Pedido em ${data}</strong> (Pendente: R$ ${restandoNoPedido.toFixed(2)})
-                  </div>
-                  ${produtosDesc}
-                </div>
-              `;
-            }).join('') : '<div class="history-item" style="color: #10b981; font-weight: 600; padding: 4px 0;">Nenhum produto pendente de pagamento!</div>'}
+
+            ${pedidosPendentes.length > 0 ? `
+              <div class="ch-section">
+                <div class="ch-section-title ch-pedidos-title">Dívidas pendentes</div>
+                ${pedidosPendentes.map(p => {
+                  const saldoRestante = saldoPorPedido[p.id] || 0;
+                  const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
+                  const itensHtml = (p.itens && p.itens.length) ? p.itens.map(i => `
+                    <div class="ch-item">
+                      <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
+                      <span class="ch-item-qty">x${i.quantidade || 0}</span>
+                      <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
+                    </div>
+                  `).join('') : '';
+
+                  // Busca todos os abatimentos feitos para este cliente (não por data do pedido)
+                  const abatimentosDoPedido = pagamentos
+                    .filter(pg => pg.clienteId === c.id)
+                    .filter(pg => {
+                      // Calcula quanto do abatimento foi atribuído a este pedido
+                      const jaPagoNoPedido = p.valorPago || 0;
+                      const restantePedido = Math.max(0, p.valorTotal - jaPagoNoPedido);
+                      const abatimentoParaEste = Math.min(restantePedido, totalAbatimentos);
+                      return abatimentoParaEste > 0;
+                    });
+
+                  // Formata os abatimentos como registros com mensagem explicativa
+                  const abatimentosHtml = abatimentosDoPedido.length > 0 ? abatimentosDoPedido.map(pg => {
+                    const pgData = new Date(pg.data).toLocaleDateString("pt-BR");
+                    const forma = pg.formaPagamento === 'dinheiro' ? 'Dinheiro' : 'PIX';
+                    return `
+                      <div class="ch-pagamento">
+                        <span class="ch-pg-data">${pgData}</span>
+                        <span class="ch-pg-valor">- R$ ${pg.valor.toFixed(2)}</span>
+                        <span class="ch-pg-forma">Foi pago com ${forma}</span>
+                      </div>
+                    `;
+                  }).join('') : '';
+
+                  return `
+                    <div class="ch-pedido">
+                      <div class="ch-pedido-header">
+                        <span><strong>${data}</strong></span>
+                        <span>Total: <strong>R$ ${p.valorTotal.toFixed(2)}</strong></span>
+                        <span style="color: #ef4444; font-weight: 600; font-size: 12px;">Falta: R$ ${saldoRestante.toFixed(2)}</span>
+                      </div>
+                      ${itensHtml}
+                      ${abatimentosHtml ? `<div class="ch-pagamentos-list">${abatimentosHtml}</div>` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : `
+              <div style="color: #059669; font-size: 13px; padding: 8px 0; font-weight: 500;">✓ Sem dívidas pendentes</div>
+            `}
           </div>
         </td>
         <td class="${saldoClass}">R$ ${saldo.toFixed(2)}</td>
@@ -610,52 +647,104 @@ function toggleHistorico(clienteId) {
   }
 }
 
+// ✅ FUNÇÃO ATUALIZADA: Abater pagamento com seleção de forma de pagamento
 async function abaterPagamento(clienteId, saldo) {
   const inp = document.getElementById("pay-val-" + clienteId);
   const valor = parseFloat(inp.value) || 0;
-  if (valor <= 0) {
-    toast("Informe um valor válido.");
-    return;
-  }
-  if (valor > saldo) {
-    toast("Valor maior que o saldo devedor.");
-    return;
-  }
+  if (valor <= 0) { toast("Informe um valor válido."); return; }
+  if (valor > saldo) { toast("Valor maior que o saldo devedor."); return; }
+
+  // Abre modal de seleção
+  const formaPagamento = await abrirModalFormaPagamento();
+  if (!formaPagamento) return; // Cancelado
+
   await dbFS.collection("pagamentos").add({
     clienteId,
     valor,
+    formaPagamento: formaPagamento,
     data: new Date().toISOString()
   });
-  toast("Pagamento registrado em rede.");
+
+  toast(`Pagamento de R$ ${valor.toFixed(2)} registrado (${formaPagamento.toUpperCase()}).`);
 }
 
+// ✅ FUNÇÃO ATUALIZADA: Quitar tudo com seleção de forma de pagamento
 async function quitarTudo(clienteId, saldo) {
   if (!confirm("Quitar todo o saldo de R$ " + saldo.toFixed(2) + "?")) return;
+
+  const formaPagamento = await abrirModalFormaPagamento();
+  if (!formaPagamento) return; // Cancelado
+
   await dbFS.collection("pagamentos").add({
     clienteId,
     valor: saldo,
+    formaPagamento: formaPagamento,
     data: new Date().toISOString()
   });
-  toast("Saldo quitado com sucesso.");
+
+  toast(`Saldo de R$ ${saldo.toFixed(2)} quitado (${formaPagamento.toUpperCase()}).`);
+}
+
+// ✅ NOVA FUNÇÃO: Modal de seleção de forma de pagamento
+function abrirModalFormaPagamento() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+      <div class="modal-content" style="text-align: center;">
+        <h3 style="margin-top: 0; color: #0f172a;">Forma de pagamento</h3>
+        <p style="font-size: 14px; color: #64748b; margin-bottom: 1.5rem;">Como o pagamento foi feito?</p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button class="btn-forma-pgto" data-forma="dinheiro" style="background: #f0fdf4; color: #065f46; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">
+            Dinheiro
+          </button>
+          <button class="btn-forma-pgto" data-forma="pix" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">
+            PIX
+          </button>
+        </div>
+        <button class="btn-cancelar-pgto" style="margin-top: 16px; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer;">
+          Cancelar
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Clique nos botões de forma
+    overlay.querySelectorAll('.btn-forma-pgto').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const forma = btn.getAttribute('data-forma');
+        overlay.remove();
+        resolve(forma);
+      });
+    });
+
+    // Cancelar
+    overlay.querySelector('.btn-cancelar-pgto').addEventListener('click', () => {
+      overlay.remove();
+      resolve(null);
+    });
+
+    // Fechar ao clicar fora
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+        resolve(null);
+      }
+    });
+  });
 }
 
 async function salvarCliente() {
   const id = document.getElementById("edit-cliente-id").value;
   const nome = document.getElementById("c-nome").value.trim();
-  if (!nome) {
-    toast("Informe o nome do cliente.");
-    return;
-  }
+  if (!nome) { toast("Informe o nome do cliente."); return; }
   if (id) {
-    await dbFS.collection("clientes").doc(id).update({
-      nome
-    });
+    await dbFS.collection("clientes").doc(id).update({ nome });
     toast("Cliente atualizado.");
   } else {
-    await dbFS.collection("clientes").add({
-      nome,
-      data: new Date().toISOString()
-    });
+    await dbFS.collection("clientes").add({ nome, data: new Date().toISOString() });
     toast("Cliente adicionado.");
   }
   cancelarEdicaoCliente();
@@ -682,17 +771,17 @@ async function deletarCliente(id) {
   toast("Cliente excluído.");
 }
 
+// ============================================================
 // --- PEDIDOS ---
+// ============================================================
+
 let itensPedido = [];
 
 function adicionarItemPedido() {
   const sel = document.getElementById("ped-produto");
   const produtoId = sel.value;
   const qty = parseInt(document.getElementById("ped-qty").value, 10) || 1;
-  if (!produtoId) {
-    toast("Selecione um produto.");
-    return;
-  }
+  if (!produtoId) { toast("Selecione um produto."); return; }
   const prod = produtos.find(p => p.id === produtoId);
   if (!prod) return;
   const qtdAtual = prod.quantidade !== undefined ? prod.quantidade : 0;
@@ -706,10 +795,8 @@ function adicionarItemPedido() {
     existente.quantidade += qty;
   } else {
     itensPedido.push({
-      produtoId: produtoId,
-      nome: prod.nome,
-      preco: prod.precoVenda || 0,
-      quantidade: qty,
+      produtoId: produtoId, nome: prod.nome,
+      preco: prod.precoVenda || 0, quantidade: qty,
       categoria: prod.categoria || 'Geral'
     });
   }
@@ -749,7 +836,6 @@ function renderItensPedido() {
       <span>R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
     </div>
   `).join("");
-
   resumoTotal.innerHTML = `<span>Valor Total:</span> <span style="float:right">R$ ${total.toFixed(2)}</span>`;
   resumo.style.display = "block";
 }
@@ -760,30 +846,18 @@ async function fazerPedido() {
   const parcelas = parseInt(document.getElementById("ped-parcelas").value) || 1;
   const valorPago = parseFloat(document.getElementById("ped-pago").value) || 0;
 
-  if (!clienteId) {
-    toast("Selecione um cliente.");
-    return;
-  }
-  if (!itensPedido.length) {
-    toast("Adicione pelo menos um produto.");
-    return;
-  }
+  if (!clienteId) { toast("Selecione um cliente."); return; }
+  if (!itensPedido.length) { toast("Adicione pelo menos um produto."); return; }
 
   const valorTotal = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
-
   await dbFS.collection("pedidos").add({
     clienteId,
     itens: itensPedido.map(i => ({
-      produtoId: i.produtoId,
-      nome: i.nome,
-      preco: i.preco,
-      quantidade: i.quantidade,
-      categoria: i.categoria
+      produtoId: i.produtoId, nome: i.nome, preco: i.preco,
+      quantidade: i.quantidade, categoria: i.categoria
     })),
     quantidade: itensPedido.reduce((s, i) => s + i.quantidade, 0),
-    valorTotal,
-    valorPago,
-    parcelas,
+    valorTotal, valorPago, parcelas,
     formaPagamento: forma,
     data: new Date().toISOString()
   });
@@ -797,7 +871,6 @@ async function fazerPedido() {
       });
     }
   }
-
   toast("Pedido registrado em rede com sucesso.");
   limparPedido();
 }
@@ -813,45 +886,125 @@ function limparPedido() {
   renderItensPedido();
 }
 
+// ============================================================
 // --- HISTÓRICO ---
+// ============================================================
+
 function renderHistorico() {
   const filtro = document.getElementById("filtro-cliente").value;
   const tbody = document.getElementById("tbody-historico");
   const lista = pedidos;
-
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhum pedido registrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido registrado.</td></tr>';
     return;
   }
 
-  const filtrados = filtro ? lista.filter(p => p.clienteId === filtro) : lista;
+  // Ordena do mais recente para o mais antigo
+  const filtrados = (filtro ? lista.filter(p => p.clienteId === filtro) : lista)
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
 
-  tbody.innerHTML = filtrados.map(ped => {
+  let html = '';
+  filtrados.forEach(ped => {
     const c = clientes.find(x => x.id === ped.clienteId);
-    let produtosDesc = "";
-    if (ped.itens && ped.itens.length) {
-      produtosDesc = ped.itens.map(i => `${i.nome} (${i.categoria || 'Geral'}) (x${i.quantidade})`).join(", ");
-    } else {
-      produtosDesc = "—";
+
+    // ✅ DISTRIBUIÇÃO CORRETA DE ABATIMENTOS:
+    // Soma apenas os abatimentos DO PRÓPRIO CLIENTE e distribui pelos pedidos
+    // do mais antigo ao mais novo, sequencialmente
+    const todosPedidosDoCliente = pedidos
+      .filter(p => p.clienteId === ped.clienteId)
+      .sort((a, b) => new Date(a.data) - new Date(b.data));
+    const totalAbatimentosCliente = pagamentos
+      .filter(pg => pg.clienteId === ped.clienteId)
+      .reduce((s, pg) => s + pg.valor, 0);
+    let abatRestante = totalAbatimentosCliente;
+    let abatimentoDestePedido = 0;
+    let formaPagamentoDoAbatimento = '';
+
+    for (const p of todosPedidosDoCliente) {
+      const jaPago = p.valorPago || 0;
+      const restantePedido = Math.max(0, p.valorTotal - jaPago);
+      const abatParaEste = Math.min(restantePedido, abatRestante);
+      if (p.id === ped.id) {
+        abatimentoDestePedido = abatParaEste;
+        // Encontra a forma de pagamento do abatimento que foi aplicado a este pedido
+        const abatimentosAplicados = pagamentos
+          .filter(pg => pg.clienteId === ped.clienteId)
+          .sort((a, b) => new Date(a.data) - new Date(b.data));
+        let acumulado = 0;
+        for (const pg of abatimentosAplicados) {
+          if (acumulado >= pg.valor) continue;
+          const restante = pg.valor - acumulado;
+          const parteUsada = Math.min(restante, abatimentoDestePedido);
+          if (parteUsada > 0) {
+            formaPagamentoDoAbatimento = pg.formaPagamento;
+            break;
+          }
+          acumulado += pg.valor;
+        }
+        break;
+      }
+      abatRestante = Math.max(0, abatRestante - abatParaEste);
     }
-    const pago = ped.valorPago >= ped.valorTotal;
+
+    const totalRealmentePago = ped.valorPago + abatimentoDestePedido;
+    const pago = totalRealmentePago >= ped.valorTotal;
     const data = ped.data ? new Date(ped.data).toLocaleDateString("pt-BR") : "—";
-    return `
-      <tr>
+
+    // Cabeçalho do pedido
+    html += `
+      <tr class="pedido-header" onclick="togglePedidoHistorico('pedido-det-${ped.id}')">
         <td style="color: #64748b;">${data}</td>
-        <td style="font-weight: 500;">${c ? c.nome : "—"}</td>
-        <td style="max-width:240px; font-size:13px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${produtosDesc}">${produtosDesc}</td>
+        <td style="font-weight: 600; color: #0f172a;">${c ? c.nome : "—"}</td>
         <td style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
-        <td>R$ ${ped.valorPago.toFixed(2)}</td>
-        <td><span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:12px">${ped.parcelas}x</span></td>
+        <td>R$ ${totalRealmentePago.toFixed(2)}</td>
         <td style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
-        <td><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span></td>
+        <td><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span> <span class="arrow-hist">▼</span></td>
       </tr>
     `;
-  }).join("");
+
+    // Linha detalhada dos itens do pedido
+    const itensHtml = (ped.itens && ped.itens.length) ? ped.itens.map(i => {
+      const subtotal = (i.preco * i.quantidade).toFixed(2);
+      return `
+        <div class="hist-item-detail">
+          <span class="hist-item-nome">${i.nome || 'Produto'} <span class="hist-item-cat">(${i.categoria || 'Geral'})</span></span>
+          <span class="hist-item-qty">x${i.quantidade || 0}</span>
+          <span class="hist-item-preco">R$ ${(i.preco || 0).toFixed(2)} un.</span>
+          <span class="hist-item-sub">R$ ${subtotal}</span>
+        </div>
+      `;
+    }).join('') : '<div style="color:#94a3b8; padding:6px 0;">—</div>';
+
+    html += `
+      <tr class="pedido-detail" id="pedido-det-${ped.id}" style="display:none;">
+        <td colspan="6" style="padding: 0; border: none;">
+          <div class="pedido-detail-wrap">
+            ${itensHtml}
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
 }
 
+function togglePedidoHistorico(rowId) {
+  const row = document.getElementById(rowId);
+  const arrow = row?.previousElementSibling?.querySelector('.arrow-hist');
+  if (row.style.display === 'none' || row.style.display === '') {
+    row.style.display = 'table-row';
+    if (arrow) arrow.style.transform = 'rotate(180deg)';
+  } else {
+    row.style.display = 'none';
+    if (arrow) arrow.style.transform = 'rotate(0deg)';
+  }
+}
+
+// ============================================================
 // --- SELECTS ---
+// ============================================================
+
 function atualizarSelects() {
   const pedCliente = document.getElementById("ped-cliente");
   if (pedCliente) {
@@ -886,28 +1039,25 @@ function atualizarSelects() {
   }
 }
 
+// ============================================================
 // --- EVENTOS DE TECLADO ---
+// ============================================================
+
 function handleEnterKey(event, nextFieldId) {
   if (event.key === 'Enter') {
     event.preventDefault();
-    if (nextFieldId === 'salvar-produto') {
-      salvarProduto();
-      return;
-    }
-    if (nextFieldId === 'salvar-cliente') {
-      salvarCliente();
-      return;
-    }
-    if (nextFieldId === 'adicionar-item') {
-      adicionarItemPedido();
-      return;
-    }
+    if (nextFieldId === 'salvar-produto') { salvarProduto(); return; }
+    if (nextFieldId === 'salvar-cliente') { salvarCliente(); return; }
+    if (nextFieldId === 'adicionar-item') { adicionarItemPedido(); return; }
     const nextField = document.getElementById(nextFieldId);
     if (nextField) nextField.focus();
   }
 }
 
+// ============================================================
 // --- EVENTOS GLOBAIS ---
+// ============================================================
+
 document.addEventListener('click', function(e) {
   const sugestoes = document.getElementById('categoria-sugestoes');
   const input = document.getElementById('p-cat');
@@ -923,7 +1073,10 @@ if (modalCat) {
   });
 }
 
-// ✅ FUNÇÃO DE BUSCA EM TEMPO REAL — FORA DE QUALQUER EVENTO
+// ============================================================
+// --- BUSCA EM TEMPO REAL ---
+// ============================================================
+
 function filtrarEstoque() {
   const busca = document.getElementById('busca-produto').value.toLowerCase().trim();
   const tbody = document.getElementById('tbody-estoque');
@@ -934,18 +1087,19 @@ function filtrarEstoque() {
   }
   tbody.innerHTML = produtosFiltrados.map(p => {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
-    const custoFinal = p.precoCusto !== null ? p.precoCusto : 0;
-    const precoFinal = p.precoVenda !== null ? p.precoVenda : 0;
+    const custoFinal = p.precoCusto || 0;
+    const precoFinal = p.precoVenda || 0;
     const emPromocao = p.emPromocao === "sim";
     const descricao = p.descricao || "";
     const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
     const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
     const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
-    const promoTag = emPromocao ? '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;"> promo</span>' : '';
+    const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
+    const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
     return `
       <tr>
         <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+        <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
         <td>
           <div class="qty-ctrl">
             <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
@@ -957,8 +1111,8 @@ function filtrarEstoque() {
           ${precoCustoExibido}<br>
           ${precoVendaExibido} ${promoTag}
         </td>
-        <td style="font-size: 13px; color: #64748b; max-width: 120px; word-wrap: break-word; cursor: pointer;" onclick="mostrarDescricao('${p.id}', '${descricao.replace(/'/g, "\\'")}')">
-          ${descricaoResumo}
+        <td class="desc-cell" onclick="mostrarDescricao('${descricaoEsc}')">
+          ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
         </td>
         <td class="actions">
           <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
@@ -969,7 +1123,10 @@ function filtrarEstoque() {
   }).join("");
 }
 
-// ✅ FUNÇÃO DE FILTRO POR CATEGORIA (ESTOQUE) — FORA DE QUALQUER EVENTO
+// ============================================================
+// --- FILTRO POR CATEGORIA (ESTOQUE) ---
+// ============================================================
+
 function filtrarCategoriaEstoque(categoria) {
   document.querySelectorAll('#filtro-categoria-estoque .category-button').forEach(btn => {
     btn.classList.remove('active');
@@ -992,18 +1149,19 @@ function filtrarCategoriaEstoque(categoria) {
   }
   tbody.innerHTML = produtosFiltrados.map(p => {
     const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
-    const custoFinal = p.precoCusto !== null ? p.precoCusto : 0;
-    const precoFinal = p.precoVenda !== null ? p.precoVenda : 0;
+    const custoFinal = p.precoCusto || 0;
+    const precoFinal = p.precoVenda || 0;
     const emPromocao = p.emPromocao === "sim";
     const descricao = p.descricao || "";
     const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
     const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
     const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
-    const promoTag = emPromocao ? '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px;"> promo</span>' : '';
+    const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
+    const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
     return `
       <tr>
         <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
-        <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${p.categoria || 'Geral'}</span></td>
+        <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
         <td>
           <div class="qty-ctrl">
             <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
@@ -1015,8 +1173,8 @@ function filtrarCategoriaEstoque(categoria) {
           ${precoCustoExibido}<br>
           ${precoVendaExibido} ${promoTag}
         </td>
-        <td style="font-size: 13px; color: #64748b; max-width: 120px; word-wrap: break-word; cursor: pointer;" onclick="mostrarDescricao('${p.id}', '${descricao.replace(/'/g, "\\'")}')">
-          ${descricaoResumo}
+        <td class="desc-cell" onclick="mostrarDescricao('${descricaoEsc}')">
+          ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
         </td>
         <td class="actions">
           <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
@@ -1027,11 +1185,13 @@ function filtrarCategoriaEstoque(categoria) {
   }).join("");
 }
 
-// ✅ FUNÇÃO CORRIGIDA: ATUALIZA OS BOTÕES DE CATEGORIA NO ESTOQUE — BASEADA EM CATEGORIAS SALVAS, NÃO SÓ EM PRODUTOS
+// ============================================================
+// --- ATUALIZAR FILTRO DE CATEGORIA (ESTOQUE) ---
+// ============================================================
+
 function atualizarFiltroCategoriaEstoque() {
   const container = document.getElementById('filtro-categoria-estoque');
   if (!container) return;
-
   const categoriasSalvas = carregarCategorias();
   const categoriasComProdutos = new Set();
   produtos.forEach(p => {
@@ -1039,9 +1199,7 @@ function atualizarFiltroCategoriaEstoque() {
       categoriasComProdutos.add(p.categoria.trim());
     }
   });
-
   const todasCategorias = [...new Set([...categoriasSalvas, ...categoriasComProdutos])];
-
   container.innerHTML = '<button class="category-button active" onclick="filtrarCategoriaEstoque(\'todos\')">Todas</button>';
   todasCategorias.forEach(cat => {
     const btn = document.createElement('button');
@@ -1052,33 +1210,31 @@ function atualizarFiltroCategoriaEstoque() {
   });
 }
 
-// ✅ FUNÇÃO: MOSTRAR DESCRIÇÃO COMPLETA EM MODAL
-function mostrarDescricao(id, descricaoCompleta) {
+// ============================================================
+// --- MODAL DE DESCRIÇÃO ---
+// ============================================================
+
+function mostrarDescricao(descricaoCompleta) {
   const modal = document.createElement('div');
-  modal.style.position = 'fixed';
-  modal.style.top = '0';
-  modal.style.left = '0';
-  modal.style.width = '100%';
-  modal.style.height = '100%';
-  modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
-  modal.style.display = 'flex';
-  modal.style.alignItems = 'center';
-  modal.style.justifyContent = 'center';
-  modal.style.zIndex = '9999';
-  modal.style.padding = '20px';
+  modal.className = 'modal-desc-overlay';
   modal.innerHTML = `
-    <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-      <h3 style="margin-top: 0; color: #0f172a;">Descrição do Produto</h3>
-      <p style="font-size: 15px; line-height: 1.6; margin-bottom: 1.5rem; color: #334155;">${descricaoCompleta || 'Sem descrição.'}</p>
-      <button onclick="this.parentElement.parentElement.remove()" style="background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">Fechar</button>
+    <div class="modal-desc-content">
+      <h3>Descrição do Produto</h3>
+      <p>${descricaoCompleta || 'Sem descrição.'}</p>
+      <button class="primary" onclick="this.parentElement.parentElement.remove()">Fechar</button>
     </div>
   `;
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.remove();
+  });
   document.body.appendChild(modal);
 }
 
-// ✅ FUNÇÃO: ATUALIZAR RESUMO FINANCEIRO (Clientes)
+// ============================================================
+// --- RESUMO FINANCEIRO ---
+// ============================================================
+
 function atualizarResumoFinanceiro() {
-  // Total a receber (dívidas de clientes)
   let totalReceber = 0;
   clientes.forEach(cliente => {
     const totalPedidos = pedidos
@@ -1087,45 +1243,41 @@ function atualizarResumoFinanceiro() {
     const totalPago = pedidos
       .filter(p => p.clienteId === cliente.id)
       .reduce((s, p) => s + p.valorPago, 0) +
-      pagamentos
-      .filter(pg => pg.clienteId === cliente.id)
-      .reduce((s, pg) => s + pg.valor, 0);
-    const saldo = Math.max(0, totalPedidos - totalPago);
-    totalReceber += saldo;
+      pagamentos.filter(pg => pg.clienteId === cliente.id)
+        .reduce((s, pg) => s + pg.valor, 0);
+    totalReceber += Math.max(0, totalPedidos - totalPago);
   });
 
-  // Valor total em estoque (venda)
   let totalEstoque = 0;
-  produtos.forEach(p => {
-    const precoVenda = p.precoVenda || 0;
-    const quantidade = p.quantidade || 0;
-    totalEstoque += precoVenda * quantidade;
-  });
-
-  // Valor total gasto (custo)
   let totalCusto = 0;
   produtos.forEach(p => {
-    const precoCusto = p.precoCusto || 0;
-    const quantidade = p.quantidade || 0;
-    totalCusto += precoCusto * quantidade;
+    const qtd = p.quantidade || 0;
+    totalEstoque += (p.precoVenda || 0) * qtd;
+    totalCusto += (p.precoCusto || 0) * qtd;
   });
 
-  // Lucro estimado
   const lucroEstimado = totalEstoque - totalCusto;
 
-  // Atualiza os elementos na interface
-  document.getElementById("resumo-receber").textContent = `R$ ${totalReceber.toFixed(2)}`;
-  document.getElementById("resumo-estoque").textContent = `R$ ${totalEstoque.toFixed(2)}`;
-  document.getElementById("resumo-custo").textContent = `R$ ${totalCusto.toFixed(2)}`;
-  document.getElementById("resumo-lucro").textContent = `R$ ${lucroEstimado.toFixed(2)}`;
+  const elReceber = document.getElementById("resumo-receber");
+  const elEstoque = document.getElementById("resumo-estoque");
+  const elCusto = document.getElementById("resumo-custo");
+  const elLucro = document.getElementById("resumo-lucro");
+
+  if (elReceber) elReceber.textContent = `R$ ${totalReceber.toFixed(2)}`;
+  if (elEstoque) elEstoque.textContent = `R$ ${totalEstoque.toFixed(2)}`;
+  if (elCusto) elCusto.textContent = `R$ ${totalCusto.toFixed(2)}`;
+  if (elLucro) elLucro.textContent = `R$ ${lucroEstimado.toFixed(2)}`;
 }
 
-// 🔐 BOTÃO SECRETO DE LIMPEZA — Ative com Ctrl + Alt + P
+// ============================================================
+// --- LIMPEZA SECRETA (Ctrl + Alt + P) ---
+// ============================================================
+
 window.addEventListener('keydown', async (e) => {
   if (e.key === 'p' && e.ctrlKey && e.altKey) {
     e.preventDefault();
     const confirmed = confirm(
-      "⚠️ ATENÇÃO: Isso apagará TODOS os produtos, clientes, pedidos e pagamentos do sistema.\n\n" +
+      "ATENÇÃO: Isso apagará TODOS os produtos, clientes, pedidos e pagamentos do sistema.\n\n" +
       "Você tem certeza que deseja limpar tudo? Esta ação não pode ser desfeita."
     );
     if (!confirmed) return;
@@ -1139,10 +1291,10 @@ window.addEventListener('keydown', async (e) => {
         await batch.commit();
         totalDeleted += snapshot.size;
       }
-      toast(`✅ ${totalDeleted} registros apagados com sucesso!`);
+      toast(`${totalDeleted} registros apagados com sucesso!`);
       console.log(`[CLEANUP] LIMPEZA CONCLUÍDA: ${totalDeleted} registros removidos.`);
     } catch (error) {
-      toast("❌ Erro ao apagar dados. Verifique a conexão ou permissões.");
+      toast("Erro ao apagar dados. Verifique a conexão ou permissões.");
       console.error("Erro na limpeza:", error);
     }
   }
