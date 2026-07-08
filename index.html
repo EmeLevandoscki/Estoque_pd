@@ -59,6 +59,36 @@
           </select>
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo de produto</label>
+          <select id="p-tipo" onchange="toggleCampoCombo()">
+            <option value="simples">Produto simples</option>
+            <option value="combo">Combo</option>
+          </select>
+        </div>
+        <div class="form-group" id="grupo-combo" style="display:none;">
+          <label>Itens do combo <span class="help-icon" title="1. Cadastre produtos SIMPLES antes&#10;2. Digite o nome do produto&#10;3. Defina a quantidade&#10;4. Clique Adicionar">?</span></label>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-end;">
+            <div style="flex: 1;">
+              <label style="font-size: 13px; display: block; margin-bottom: 4px;">Produto</label>
+              <input type="text" id="p-combo-produto" placeholder="Digite ou selecione um produto..." list="lista-produtos-combo" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;" oninput="atualizarListaProdutosCombo()">
+              <datalist id="lista-produtos-combo"></datalist>
+            </div>
+            <div style="width: 100px;">
+              <label style="font-size: 13px; display: block; margin-bottom: 4px;">Qtd</label>
+              <input type="number" id="p-combo-qty" value="1" min="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
+            </div>
+            <button type="button" class="primary" onclick="adicionarItemAoCombo()" style="padding: 8px 16px; height: 40px;">Adicionar</button>
+          </div>
+          <div id="lista-itens-combo" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <small style="display: block; color: #64748b; margin-bottom: 8px; font-weight: 500;">Itens adicionados:</small>
+            <div id="itens-combo-tags" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+          </div>
+          <input type="hidden" id="p-itens-combo" value="">
+          <small style="display:block;color:#64748b;margin-top:4px;">Selecione produtos do estoque e adicione ao combo</small>
+        </div>
+      </div>
       <div class="form-group">
         <label>Descrição do produto</label>
         <textarea id="p-descricao" placeholder="Ex: Batom hidratante, cor vermelho vinho, durabilidade de 8h" rows="3" onkeydown="handleEnterKey(event, 'salvar-produto')"></textarea>
@@ -191,7 +221,7 @@
       <h3>Adicionar produtos ao pedido</h3>
       <div class="item-linha">
         <div class="form-group">
-          <label>Produto</label>
+          <label>Produto / Combo do estoque</label>
           <select id="ped-produto"><option value="">Selecione...</option></select>
         </div>
         <div class="form-group">
@@ -200,6 +230,7 @@
         </div>
         <button class="primary" onclick="adicionarItemPedido()" id="adicionar-item">Adicionar</button>
       </div>
+      <small style="display:block; color:#64748b; margin-top:8px;">Se escolher um combo do estoque, ele monta o pedido com os produtos já cadastrados do combo, como se fosse um carinho montado na hora.</small>
       <div id="itens-lista" style="margin-top:12px; min-height:32px"></div>
       <div class="resumo-pedido" id="resumo-pedido" style="display:none">
         <div id="resumo-itens"></div>

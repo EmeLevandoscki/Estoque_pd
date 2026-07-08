@@ -247,6 +247,7 @@ function bloquearSistema() {
 // ============================================================
 
 window.addEventListener("DOMContentLoaded", function() {
+  toggleCampoCombo();
   if (sessionStorage.getItem('sistemaDesbloqueado') === 'true') {
     desbloquearApp();
   } else {
@@ -346,6 +347,169 @@ function getStatusTag(produto) {
     : '<span class="badge-promo" style="background:#fee2e2;color:#b91c1c;margin-left:6px;">inativo</span>';
 }
 
+function toggleCampoCombo() {
+  const tipo = document.getElementById('p-tipo')?.value || 'simples';
+  const grupoCombo = document.getElementById('grupo-combo');
+  if (grupoCombo) {
+    grupoCombo.style.display = tipo === 'combo' ? 'block' : 'none';
+  }
+  if (tipo === 'combo') {
+    atualizarListaProdutosCombo();
+  }
+}
+
+function atualizarListaProdutosCombo() {
+  const input = document.getElementById('p-combo-produto');
+  const datalist = document.getElementById('lista-produtos-combo');
+  if (!datalist) return;
+  
+  const idProdutoAtual = document.getElementById('edit-produto-id').value;
+  const filtro = input.value.toLowerCase();
+  
+  const produtosFiltrados = produtos
+    .filter(p => p.id !== idProdutoAtual && p.tipo !== 'combo')
+    .filter(p => p.nome.toLowerCase().includes(filtro))
+    .slice(0, 15);
+  
+  datalist.innerHTML = produtosFiltrados.map(p => {
+    const qtd = getQuantidadeProduto(p);
+    return `<option value="${p.nome}" data-id="${p.id}" data-preco="${p.precoVenda || 0}"> (${qtd} un.) — R$ ${(p.precoVenda || 0).toFixed(2)}</option>`;
+  }).join('');
+}
+
+let itemsComboTemp = [];
+
+function adicionarItemAoCombo() {
+  const input = document.getElementById('p-combo-produto');
+  const qtyInput = document.getElementById('p-combo-qty');
+  const nomeProduto = input.value.trim();
+  const quantidade = parseInt(qtyInput.value, 10) || 1;
+
+  if (!nomeProduto) {
+    toast('Digite o nome de um produto.');
+    return;
+  }
+
+  const prod = produtos.find(p => p.nome.toLowerCase() === nomeProduto.toLowerCase() && p.tipo !== 'combo');
+  if (!prod) {
+    toast(`Produto "${nomeProduto}" não encontrado no estoque.`);
+    return;
+  }
+
+  const existente = itemsComboTemp.find(i => i.produtoId === prod.id);
+  if (existente) {
+    existente.quantidade += quantidade;
+  } else {
+    itemsComboTemp.push({
+      produtoId: prod.id,
+      nome: prod.nome,
+      quantidade: quantidade
+    });
+  }
+
+  input.value = '';
+  qtyInput.value = '1';
+  renderizarItensComboTemp();
+  atualizarListaProdutosCombo();
+  toast(`${prod.nome} adicionado ao combo.`);
+}
+
+function renderizarItensComboTemp() {
+  const tags = document.getElementById('itens-combo-tags');
+  const listDiv = document.getElementById('lista-itens-combo');
+  const hidden = document.getElementById('p-itens-combo');
+
+  if (!itemsComboTemp.length) {
+    listDiv.style.display = 'none';
+    hidden.value = '';
+    return;
+  }
+
+  listDiv.style.display = 'block';
+  tags.innerHTML = itemsComboTemp.map(item => `
+    <span style="display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; padding: 6px 10px; border-radius: 999px; border: 1px solid #bfdbfe; font-size: 13px; color: #0369a1;">
+      ${item.nome} x${item.quantidade}
+      <button type="button" onclick="removerItemDoComboTemp('${item.produtoId}')" style="border: none; background: none; cursor: pointer; color: #0369a1; font-weight: bold; padding: 0; margin: 0;">×</button>
+    </span>
+  `).join('');
+
+  hidden.value = JSON.stringify(itemsComboTemp);
+}
+
+function removerItemDoComboTemp(produtoId) {
+  itemsComboTemp = itemsComboTemp.filter(i => i.produtoId !== produtoId);
+  renderizarItensComboTemp();
+  toast('Item removido do combo.');
+}
+
+function parseItensCombo(texto) {
+  if (!texto) return [];
+  try {
+    const parsed = JSON.parse(texto);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {}
+  return texto
+    .split(/\n+/)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map(item => {
+      const [nome, qtd] = item.split('|').map(part => part.trim());
+      return {
+        nome: nome || 'Item',
+        quantidade: parseInt(qtd || '1', 10) || 1
+      };
+    });
+}
+
+function formatarItensCombo(itens) {
+  if (!Array.isArray(itens) || !itens.length) return '';
+  return itens.map(item => `${item.nome} x${item.quantidade}`).join(', ');
+}
+
+function getHtmlProdutoEstoque(p) {
+  const qtdFinal = getQuantidadeProduto(p);
+  const custoFinal = p.precoCusto || 0;
+  const precoFinal = p.precoVenda || 0;
+  const emPromocao = p.emPromocao === 'sim';
+  const descricao = p.descricao || '';
+  const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + '...' : descricao;
+  const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
+  const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
+  const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
+  const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
+  const statusTag = getStatusTag(p);
+  const tipoBadge = p.tipo === 'combo'
+    ? '<span class="badge-promo" style="background:#e0f2fe;color:#075985;margin-left:6px;">combo</span>'
+    : '';
+  const comboResumo = p.tipo === 'combo' && Array.isArray(p.itensCombo) && p.itensCombo.length
+    ? `<div style="font-size:11px;color:#64748b;margin-top:4px;">Combo: ${formatarItensCombo(p.itensCombo)}</div>`
+    : '';
+  return `
+    <tr>
+      <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}${tipoBadge}${comboResumo}</td>
+      <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
+      <td>
+        <div class="qty-ctrl">
+          <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
+          <span class="qty-num">${qtdFinal}</span>
+          <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
+        </div>
+      </td>
+      <td style="font-weight: 500; font-size: 13px;">
+        ${precoCustoExibido}<br>
+        ${precoVendaExibido} ${promoTag}
+      </td>
+      <td class="desc-cell" onclick="mostrarDescricao('${descricaoEsc}')">
+        ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
+      </td>
+      <td class="actions">
+        <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
+        <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
+      </td>
+    </tr>
+  `;
+}
+
 function renderEstoque() {
   const tbody = document.getElementById("tbody-estoque");
   if (!produtos.length) {
@@ -361,43 +525,7 @@ function renderEstoque() {
     return (a.nome || '').localeCompare(b.nome || '');
   });
 
-  tbody.innerHTML = produtosOrdenados.map(p => {
-    const qtdFinal = getQuantidadeProduto(p);
-    const custoFinal = p.precoCusto || 0;
-    const precoFinal = p.precoVenda || 0;
-    const emPromocao = p.emPromocao === "sim";
-    const descricao = p.descricao || "";
-    const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
-    const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
-    const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
-    const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
-    const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
-    const statusTag = getStatusTag(p);
-    return `
-      <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}</td>
-        <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
-        <td>
-          <div class="qty-ctrl">
-            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-            <span class="qty-num">${qtdFinal}</span>
-            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-          </div>
-        </td>
-        <td style="font-weight: 500; font-size: 13px;">
-          ${precoCustoExibido}<br>
-          ${precoVendaExibido} ${promoTag}
-        </td>
-        <td class="desc-cell" onclick="mostrarDescricao('${descricaoEsc}')">
-          ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
-        </td>
-        <td class="actions">
-          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-        </td>
-      </tr>
-    `;
-  }).join("");
+  tbody.innerHTML = produtosOrdenados.map(getHtmlProdutoEstoque).join("");
   atualizarFiltroCategoriaEstoque();
   atualizarResumoFinanceiro();
 }
@@ -418,10 +546,16 @@ async function salvarProduto() {
   const custo = parseFloat(document.getElementById("p-custo").value) || null;
   const preco = parseFloat(document.getElementById("p-preco").value) || null;
   const promocao = document.getElementById("p-promocao").value || null;
+  const tipo = document.getElementById("p-tipo")?.value || "simples";
+  const itensCombo = tipo === 'combo' ? itemsComboTemp : [];
   const descricao = document.getElementById("p-descricao").value.trim() || null;
 
   if (!nome || !cat) {
     toast("Preencha nome e categoria.");
+    return;
+  }
+  if (tipo === 'combo' && !itensCombo.length) {
+    toast("Adicione pelo menos um item ao combo.");
     return;
   }
   salvarCategoria(cat);
@@ -431,7 +565,8 @@ async function salvarProduto() {
     await dbFS.collection("produtos").doc(id).update({
       nome, categoria: cat, quantidade: qty, ativo: produtoAtivo,
       precoCusto: custo, precoVenda: preco,
-      emPromocao: promocao, descricao: descricao
+      emPromocao: promocao, descricao: descricao,
+      tipo, itensCombo
     });
     toast("Produto atualizado.");
   } else {
@@ -439,6 +574,7 @@ async function salvarProduto() {
       nome, categoria: cat, quantidade: qty, ativo: produtoAtivo,
       precoCusto: custo, precoVenda: preco,
       emPromocao: promocao, descricao: descricao,
+      tipo, itensCombo,
       data: new Date().toISOString()
     });
     toast("Produto adicionado.");
@@ -456,7 +592,15 @@ function editarProduto(id) {
   document.getElementById("p-custo").value = p.precoCusto || 0;
   document.getElementById("p-preco").value = p.precoVenda || 0;
   document.getElementById("p-promocao").value = p.emPromocao || "";
+  document.getElementById("p-tipo").value = p.tipo || "simples";
+  itemsComboTemp = Array.isArray(p.itensCombo) ? p.itensCombo.map(item => ({
+    produtoId: item.produtoId || '',
+    nome: item.nome,
+    quantidade: item.quantidade
+  })) : [];
   document.getElementById("p-descricao").value = p.descricao || "";
+  toggleCampoCombo();
+  renderizarItensComboTemp();
   document.getElementById("estoque-title").textContent = "Editar produto";
   document.getElementById("p-nome").focus();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -470,7 +614,11 @@ function cancelarEdicaoProduto() {
   document.getElementById("p-custo").value = "0";
   document.getElementById("p-preco").value = "0";
   document.getElementById("p-promocao").value = "";
+  document.getElementById("p-tipo").value = "simples";
+  itemsComboTemp = [];
   document.getElementById("p-descricao").value = "";
+  toggleCampoCombo();
+  renderizarItensComboTemp();
   document.getElementById("estoque-title").textContent = "Novo produto";
   document.getElementById('categoria-sugestoes').style.display = 'none';
 }
@@ -807,14 +955,21 @@ function adicionarItemPedido() {
   const produtoId = sel.value;
   const qty = parseInt(document.getElementById("ped-qty").value, 10) || 1;
   if (!produtoId) { toast("Selecione um produto."); return; }
+
   const prod = produtos.find(p => p.id === produtoId);
   if (!prod) return;
+
+  if (prod.tipo === 'combo') {
+    montarCombo(produtoId, qty);
+    return;
+  }
+
   if (!isProdutoAtivo(prod)) {
     toast(prod.nome + " está indisponível por estar sem estoque.");
     return;
   }
   const qtdAtual = getQuantidadeProduto(prod);
-  const existente = itensPedido.find(i => i.produtoId === produtoId);
+  const existente = itensPedido.find(i => i.produtoId === produtoId && i.tipo !== 'combo');
   const jaAdicionado = existente ? existente.quantidade : 0;
   if (jaAdicionado + qty > qtdAtual) {
     toast("Estoque insuficiente para " + prod.nome + ".");
@@ -826,12 +981,88 @@ function adicionarItemPedido() {
     itensPedido.push({
       produtoId: produtoId, nome: prod.nome,
       preco: prod.precoVenda || 0, quantidade: qty,
-      categoria: prod.categoria || 'Geral'
+      categoria: prod.categoria || 'Geral',
+      tipo: prod.tipo || 'simples',
+      itensCombo: []
     });
   }
   document.getElementById("ped-produto").value = "";
   document.getElementById("ped-qty").value = "1";
   renderItensPedido();
+}
+
+function montarCombo(comboSelecionado = null, qtdCombo = null) {
+  const comboId = comboSelecionado || document.getElementById("ped-produto").value;
+  const quantidadeCombo = qtdCombo !== null ? qtdCombo : (parseInt(document.getElementById("ped-qty").value, 10) || 1);
+
+  if (!comboId) {
+    toast("Selecione um combo para adicionar.");
+    return;
+  }
+
+  const combo = produtos.find(p => p.id === comboId);
+  if (!combo || combo.tipo !== 'combo') {
+    toast("Selecione um produto do tipo combo.");
+    return;
+  }
+
+  const itensDoCombo = Array.isArray(combo.itensCombo) ? combo.itensCombo : [];
+  if (!itensDoCombo.length) {
+    toast("Esse combo não possui itens definidos.");
+    return;
+  }
+
+  let erroEstoque = null;
+
+  itensDoCombo.forEach(item => {
+    const produtoBase = produtos.find(p => p.id === item.produtoId || p.nome.toLowerCase() === (item.nome || '').toLowerCase());
+    if (!produtoBase) {
+      erroEstoque = `Não foi possível localizar "${item.nome}" no estoque.`;
+      return;
+    }
+    if (!isProdutoAtivo(produtoBase)) {
+      erroEstoque = `${produtoBase.nome} está indisponível no momento.`;
+      return;
+    }
+    const qtdNecessaria = (item.quantidade || 1) * quantidadeCombo;
+    const qtdAtual = getQuantidadeProduto(produtoBase);
+    if (qtdAtual < qtdNecessaria) {
+      erroEstoque = `Estoque insuficiente para ${produtoBase.nome}.`;
+      return;
+    }
+  });
+
+  if (erroEstoque) {
+    toast(erroEstoque);
+    return;
+  }
+
+  itensDoCombo.forEach(item => {
+    const produtoBase = produtos.find(p => p.id === item.produtoId || p.nome.toLowerCase() === (item.nome || '').toLowerCase());
+    if (!produtoBase) return;
+
+    const qtdNecessaria = (item.quantidade || 1) * quantidadeCombo;
+    const existente = itensPedido.find(i => i.produtoId === produtoBase.id && i.tipo !== 'combo');
+
+    if (existente) {
+      existente.quantidade += qtdNecessaria;
+    } else {
+      itensPedido.push({
+        produtoId: produtoBase.id,
+        nome: produtoBase.nome,
+        preco: produtoBase.precoVenda || 0,
+        quantidade: qtdNecessaria,
+        categoria: produtoBase.categoria || 'Geral',
+        tipo: 'simples',
+        itensCombo: []
+      });
+    }
+  });
+
+  document.getElementById("ped-produto").value = "";
+  document.getElementById("ped-qty").value = "1";
+  renderItensPedido();
+  toast(`Combo "${combo.nome}" montado no pedido com os produtos do estoque.`);
 }
 
 function removerItemPedido(produtoId) {
@@ -851,12 +1082,25 @@ function renderItensPedido() {
     return;
   }
 
-  lista.innerHTML = itensPedido.map(i => `
-    <span class="item-tag">
-      ${i.nome} (x${i.quantidade}) &mdash; R$ ${(i.preco * i.quantidade).toFixed(2)}
-      <button onclick="removerItemPedido('${i.produtoId}')">&#10005;</button>
-    </span>
-  `).join("");
+  lista.innerHTML = itensPedido.map(i => {
+    const comboExtras = i.tipo === 'combo' && Array.isArray(i.itensCombo) && i.itensCombo.length
+      ? `<div style="margin-top:6px; font-size:12px; color:#64748b; display:flex; flex-wrap:wrap; gap:6px;">
+          ${(i.itensCombo || []).map(item => `
+            <span style="display:inline-flex; align-items:center; gap:4px; background:#f8fafc; padding:4px 7px; border-radius:999px; border:1px solid #e2e8f0;">
+              ${item.nome} x${item.quantidade}
+            </span>
+          `).join('')}
+        </div>`
+      : '';
+
+    return `
+      <span class="item-tag">
+        ${i.nome} (x${i.quantidade}) &mdash; R$ ${(i.preco * i.quantidade).toFixed(2)}
+        <button onclick="removerItemPedido('${i.produtoId}')">&#10005;</button>
+        ${comboExtras}
+      </span>
+    `;
+  }).join("");
 
   const total = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
   resumoItens.innerHTML = itensPedido.map(i => `
@@ -883,7 +1127,8 @@ async function fazerPedido() {
     clienteId,
     itens: itensPedido.map(i => ({
       produtoId: i.produtoId, nome: i.nome, preco: i.preco,
-      quantidade: i.quantidade, categoria: i.categoria
+      quantidade: i.quantidade, categoria: i.categoria,
+      tipo: i.tipo || 'simples', itensCombo: i.itensCombo || []
     })),
     quantidade: itensPedido.reduce((s, i) => s + i.quantidade, 0),
     valorTotal, valorPago, parcelas,
@@ -900,6 +1145,19 @@ async function fazerPedido() {
         quantidade: novaQty,
         ativo: novaQty > 0
       });
+    }
+
+    if (item.tipo === 'combo' && Array.isArray(item.itensCombo)) {
+      for (const componente of item.itensCombo) {
+        const produtoBase = produtos.find(p => p.id === componente.produtoId || p.nome.toLowerCase() === (componente.nome || '').toLowerCase());
+        if (!produtoBase) continue;
+        const qtdAtualBase = getQuantidadeProduto(produtoBase);
+        const novaQtyBase = Math.max(0, qtdAtualBase - (componente.quantidade || 0));
+        await dbFS.collection("produtos").doc(produtoBase.id).update({
+          quantidade: novaQtyBase,
+          ativo: novaQtyBase > 0
+        });
+      }
     }
   }
   toast("Pedido registrado em rede com sucesso.");
