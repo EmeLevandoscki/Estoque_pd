@@ -1,9 +1,4 @@
-// script.js — VERSÃO FINAL COMPLETA
-// Funcionalidades: estoque, pedidos, clientes, histórico, categorias dinâmicas,
-// descrição otimizada (modal), promoção, preço de custo/venda, resumo financeiro,
-// forma de pagamento no abatimento de dívida
-
-const firebaseConfig = {
+ const firebaseConfig = {
   apiKey: "AIzaSyCJNQEACZMM7C90J0LcLwPF7LWGvd2xdu0",
   authDomain: "meu-estoque-4f39d.firebaseapp.com",
   projectId: "meu-estoque-4f39d",
@@ -20,9 +15,17 @@ const SENHA_CORRETA = "181022";
 const NOMES_FIXOS = ["Emelly Levandoscki", "Taina Pinheiro Pomatti"];
 let timersFechamento = {};
 
-// ============================================================
+// ✅ Função para arredondar valores monetários com precisão
+function arredondarMoeda(valor) {
+  return Math.round(valor * 100) / 100;
+}
+
+// ✅ Função para comparar valores monetários com margem de erro (0.01)
+function saldoZero(saldo) {
+  return arredondarMoeda(saldo) <= 0.01;
+}
+
 // --- CATEGORIAS ---
-// ============================================================
 
 function carregarCategorias() {
   const categorias = localStorage.getItem('categorias');
@@ -202,9 +205,7 @@ function filtrarCategoria(categoria) {
   atualizarSelects();
 }
 
-// ============================================================
 // --- SEGURANÇA ---
-// ============================================================
 
 function inicializarSeguranca() {
   const titulo = document.getElementById("lock-titulo");
@@ -242,9 +243,7 @@ function bloquearSistema() {
   inicializarSeguranca();
 }
 
-// ============================================================
 // --- INICIALIZAÇÃO ---
-// ============================================================
 
 window.addEventListener("DOMContentLoaded", function() {
   toggleCampoCombo();
@@ -255,9 +254,7 @@ window.addEventListener("DOMContentLoaded", function() {
   }
 });
 
-// ============================================================
 // --- SINCRONIZAÇÃO EM TEMPO REAL ---
-// ============================================================
 
 function ativarSincronizacaoEmTempoReal() {
   dbFS.collection("produtos").orderBy("nome", "asc").onSnapshot(snapshot => {
@@ -306,9 +303,7 @@ function ativarSincronizacaoEmTempoReal() {
   }, 2000);
 }
 
-// ============================================================
 // --- TOAST ---
-// ============================================================
 
 function toast(msg) {
   const t = document.getElementById("toast");
@@ -317,9 +312,7 @@ function toast(msg) {
   setTimeout(() => t.classList.remove("show"), 2200);
 }
 
-// ============================================================
 // --- ABAS ---
-// ============================================================
 
 function showTab(name, btn) {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
@@ -328,9 +321,7 @@ function showTab(name, btn) {
   btn.classList.add("active");
 }
 
-// ============================================================
 // --- ESTOQUE ---
-// ============================================================
 
 function getQuantidadeProduto(produto) {
   return produto && produto.quantidade !== undefined ? Number(produto.quantidade) : 0;
@@ -629,9 +620,7 @@ async function deletarProduto(id) {
   toast("Produto excluído.");
 }
 
-// ============================================================
 // --- CLIENTES ---
-// ============================================================
 
 function renderClientes() {
   const tbody = document.getElementById("tbody-clientes");
@@ -648,11 +637,11 @@ function renderClientes() {
       .reduce((s, p) => s + p.valorPago, 0) +
       pagamentos.filter(pg => pg.clienteId === cliente.id)
         .reduce((s, pg) => s + pg.valor, 0);
-    const saldo = Math.max(0, totalPedidos - totalPago);
+    const saldo = arredondarMoeda(Math.max(0, totalPedidos - totalPago));
 
     if (NOMES_FIXOS.includes(cliente.nome)) {
       clientesFixos.push({ ...cliente, saldo });
-    } else if (saldo > 0) {
+    } else if (saldo > 0.01) {
       clientesComPendencia.push({ ...cliente, saldo });
     } else {
       clientesSemPendencia.push({ ...cliente, saldo });
@@ -684,8 +673,8 @@ function renderClientes() {
       .filter(pg => pg.clienteId === c.id)
       .reduce((s, pg) => s + pg.valor, 0);
     const totalPago = totalPagoPedidos + totalAbatimentos;
-    const saldo = Math.max(0, totalPedidos - totalPago);
-    const saldoClass = saldo === 0 ? "saldo-zero" : "saldo-pos";
+    const saldo = arredondarMoeda(Math.max(0, totalPedidos - totalPago));
+    const saldoClass = saldoZero(saldo) ? "saldo-zero" : "saldo-pos";
 
     // Pedidos do cliente (do mais recente para o mais antigo)
     const pedidosDoCliente = pedidos
@@ -703,11 +692,11 @@ function renderClientes() {
       const restantePedido = Math.max(0, p.valorTotal - jaPagoNoPedido);
       const abatimentoParaEste = Math.min(restantePedido, abatimentosRestantes);
       abatimentosRestantes = Math.max(0, abatimentosRestantes - abatimentoParaEste);
-      saldoPorPedido[p.id] = Math.max(0, p.valorTotal - jaPagoNoPedido - abatimentoParaEste);
+      saldoPorPedido[p.id] = arredondarMoeda(Math.max(0, p.valorTotal - jaPagoNoPedido - abatimentoParaEste));
     });
 
-    // Filtra APENAS pedidos pendentes (saldo > 0)
-    const pedidosPendentes = pedidosDoCliente.filter(p => (saldoPorPedido[p.id] || 0) > 0);
+    // Filtra APENAS pedidos pendentes (saldo > 0.01)
+    const pedidosPendentes = pedidosDoCliente.filter(p => arredondarMoeda(saldoPorPedido[p.id] || 0) > 0.01);
 
     return `
       <tr class="client-row" id="linha-cliente-${c.id}">
@@ -775,7 +764,7 @@ function renderClientes() {
         </td>
         <td class="${saldoClass}">R$ ${saldo.toFixed(2)}</td>
         <td>
-          ${saldo > 0 ? `
+          ${!saldoZero(saldo) ? `
             <div class="pay-row">
               <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$">
               <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
@@ -820,36 +809,44 @@ function toggleHistorico(clienteId) {
   }
 }
 
-// ✅ FUNÇÃO ATUALIZADA: Abater pagamento com seleção de forma de pagamento
+// ✅ FUNÇÃO ATUALIZADA: Abater pagamento com seleção de pedido
 async function abaterPagamento(clienteId, saldo) {
   const inp = document.getElementById("pay-val-" + clienteId);
   const valor = parseFloat(inp.value) || 0;
   if (valor <= 0) { toast("Informe um valor válido."); return; }
   if (valor > saldo) { toast("Valor maior que o saldo devedor."); return; }
 
-  // Abre modal de seleção
-  const formaPagamento = await abrirModalFormaPagamento();
-  if (!formaPagamento) return; // Cancelado
+  // Abre modal para selecionar pedido
+  const resultado = await abrirModalPagamentoPorPedido(clienteId, valor);
+  if (!resultado) return; // Cancelado
+
+  const { formaPagamento, pedidoId } = resultado;
 
   await dbFS.collection("pagamentos").add({
     clienteId,
+    pedidoId: pedidoId || null,
     valor,
     formaPagamento: formaPagamento,
     data: new Date().toISOString()
   });
 
   toast(`Pagamento de R$ ${valor.toFixed(2)} registrado (${formaPagamento.toUpperCase()}).`);
+  inp.value = 0;
 }
 
-// ✅ FUNÇÃO ATUALIZADA: Quitar tudo com seleção de forma de pagamento
+// ✅ FUNÇÃO ATUALIZADA: Quitar tudo com seleção de pedido
 async function quitarTudo(clienteId, saldo) {
   if (!confirm("Quitar todo o saldo de R$ " + saldo.toFixed(2) + "?")) return;
 
-  const formaPagamento = await abrirModalFormaPagamento();
-  if (!formaPagamento) return; // Cancelado
+  // Abre modal para selecionar pedido
+  const resultado = await abrirModalPagamentoPorPedido(clienteId, saldo);
+  if (!resultado) return; // Cancelado
+
+  const { formaPagamento, pedidoId } = resultado;
 
   await dbFS.collection("pagamentos").add({
     clienteId,
+    pedidoId: pedidoId || null,
     valor: saldo,
     formaPagamento: formaPagamento,
     data: new Date().toISOString()
@@ -909,6 +906,148 @@ function abrirModalFormaPagamento() {
   });
 }
 
+// ✅ NOVA FUNÇÃO: Modal para selecionar qual pedido pagar
+function abrirModalPagamentoPorPedido(clienteId, valor) {
+  return new Promise((resolve) => {
+    // Busca pedidos pendentes do cliente
+    const pedidosDoCliente = pedidos
+      .filter(p => p.clienteId === clienteId)
+      .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    // Calcula saldo de cada pedido
+    const pedidosComSaldo = pedidosDoCliente.map(p => {
+      const totalAbatimentos = pagamentos
+        .filter(pg => pg.clienteId === clienteId)
+        .reduce((s, pg) => s + pg.valor, 0);
+      
+      const pedidosOrdenados = [...pedidosDoCliente].sort((a, b) => new Date(a.data) - new Date(b.data));
+      let abatimentosRestantes = totalAbatimentos;
+      let saldoPedido = 0;
+      
+      pedidosOrdenados.forEach(pd => {
+        const jaPago = pd.valorPago || 0;
+        const restante = Math.max(0, pd.valorTotal - jaPago);
+        const abatParaEste = Math.min(restante, abatimentosRestantes);
+        abatimentosRestantes = Math.max(0, abatimentosRestantes - abatParaEste);
+        if (pd.id === p.id) saldoPedido = arredondarMoeda(restante - abatParaEste);
+      });
+      
+      return { ...p, saldoPedido };
+    }).filter(p => p.saldoPedido > 0.01);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '10001';
+
+    let pedidoSelecionado = null;
+
+    overlay.innerHTML = `
+      <div class="modal-content" style="max-width: 500px; max-height: 600px; overflow-y: auto;">
+        <h3 style="margin-top: 0; color: #0f172a; margin-bottom: 1rem;">Pagar por pedido</h3>
+        
+        <div style="margin-bottom: 1.5rem; padding: 12px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
+          <span style="font-size: 13px; color: #065f46;">Valor a pagar: </span>
+          <span style="font-weight: 700; color: #065f46; font-size: 16px;">R$ ${valor.toFixed(2)}</span>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: 600; color: #475569; margin-bottom: 10px; font-size: 14px;">Qual pedido deseja pagar?</label>
+          <div style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+            ${pedidosComSaldo.length > 0 ? pedidosComSaldo.map((p, idx) => {
+              const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
+              const itensTexto = p.itens ? p.itens.map(i => `${i.nome} x${i.quantidade}`).join(', ') : 'Sem itens';
+              return `
+                <label style="display: flex; align-items: center; padding: 10px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
+                  <input type="radio" name="pedido-select" value="${p.id}" style="margin-right: 10px; cursor: pointer;">
+                  <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #0f172a; font-size: 14px;">${data} • R$ ${p.valorTotal.toFixed(2)}</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">${itensTexto}</div>
+                    <div style="font-size: 13px; color: #ef4444; margin-top: 4px; font-weight: 500;">Falta: R$ ${p.saldoPedido.toFixed(2)}</div>
+                  </div>
+                </label>
+              `;
+            }).join('') : '<div style="color: #94a3b8; text-align: center; padding: 20px;">Nenhum pedido pendente</div>'}
+            
+            <label style="display: flex; align-items: center; padding: 10px; background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 6px; cursor: pointer; margin-top: 8px; transition: all 0.2s ease;">
+              <input type="radio" name="pedido-select" value="todos" checked style="margin-right: 10px; cursor: pointer;">
+              <div style="font-weight: 600; color: #1e40af;">💳 Pagar de qualquer pedido (distribuir automaticamente)</div>
+            </label>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: 600; color: #475569; margin-bottom: 10px; font-size: 14px;">Forma de pagamento</label>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-forma" data-forma="dinheiro" style="flex: 1; background: #f0fdf4; color: #065f46; border: 2px solid #bbf7d0; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+              💵 Dinheiro
+            </button>
+            <button class="btn-forma" data-forma="pix" style="flex: 1; background: #eff6ff; color: #1e40af; border: 2px solid #bfdbfe; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+              📱 PIX
+            </button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-confirmar-pagto" style="flex: 1; background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+            Confirmar pagamento
+          </button>
+          <button class="btn-cancelar-pagto2" style="flex: 1; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    let formaEscolhida = null;
+
+    // Selecionar forma de pagamento
+    overlay.querySelectorAll('.btn-forma').forEach(btn => {
+      btn.addEventListener('click', () => {
+        overlay.querySelectorAll('.btn-forma').forEach(b => {
+          b.style.borderColor = '#e2e8f0';
+          b.style.background = b.getAttribute('data-forma') === 'dinheiro' ? '#f0fdf4' : '#eff6ff';
+        });
+        btn.style.borderColor = '#10b981';
+        btn.style.background = btn.getAttribute('data-forma') === 'dinheiro' ? '#dcfce7' : '#dbeafe';
+        formaEscolhida = btn.getAttribute('data-forma');
+      });
+    });
+
+    // Selecionar pedido
+    overlay.querySelectorAll('input[name="pedido-select"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        pedidoSelecionado = radio.value === 'todos' ? null : radio.value;
+      });
+    });
+
+    // Confirmar
+    overlay.querySelector('.btn-confirmar-pagto').addEventListener('click', () => {
+      if (!formaEscolhida) {
+        toast("Selecione a forma de pagamento.");
+        return;
+      }
+      overlay.remove();
+      resolve({ formaPagamento: formaEscolhida, pedidoId: pedidoSelecionado });
+    });
+
+    // Cancelar
+    overlay.querySelector('.btn-cancelar-pagto2').addEventListener('click', () => {
+      overlay.remove();
+      resolve(null);
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+        resolve(null);
+      }
+    });
+  });
+}
+
 async function salvarCliente() {
   const id = document.getElementById("edit-cliente-id").value;
   const nome = document.getElementById("c-nome").value.trim();
@@ -944,9 +1083,7 @@ async function deletarCliente(id) {
   toast("Cliente excluído.");
 }
 
-// ============================================================
 // --- PEDIDOS ---
-// ============================================================
 
 let itensPedido = [];
 
@@ -1175,9 +1312,7 @@ function limparPedido() {
   renderItensPedido();
 }
 
-// ============================================================
 // --- HISTÓRICO ---
-// ============================================================
 
 function renderHistorico() {
   const filtro = document.getElementById("filtro-cliente").value;
@@ -1214,7 +1349,7 @@ function renderHistorico() {
       const restantePedido = Math.max(0, p.valorTotal - jaPago);
       const abatParaEste = Math.min(restantePedido, abatRestante);
       if (p.id === ped.id) {
-        abatimentoDestePedido = abatParaEste;
+        abatimentoDestePedido = arredondarMoeda(abatParaEste);
         // Encontra a forma de pagamento do abatimento que foi aplicado a este pedido
         const abatimentosAplicados = pagamentos
           .filter(pg => pg.clienteId === ped.clienteId)
@@ -1224,7 +1359,7 @@ function renderHistorico() {
           if (acumulado >= pg.valor) continue;
           const restante = pg.valor - acumulado;
           const parteUsada = Math.min(restante, abatimentoDestePedido);
-          if (parteUsada > 0) {
+          if (parteUsada > 0.01) {
             formaPagamentoDoAbatimento = pg.formaPagamento;
             break;
           }
@@ -1235,8 +1370,8 @@ function renderHistorico() {
       abatRestante = Math.max(0, abatRestante - abatParaEste);
     }
 
-    const totalRealmentePago = ped.valorPago + abatimentoDestePedido;
-    const pago = totalRealmentePago >= ped.valorTotal;
+    const totalRealmentePago = arredondarMoeda(ped.valorPago + abatimentoDestePedido);
+    const pago = totalRealmentePago >= (ped.valorTotal - 0.01);
     const data = ped.data ? new Date(ped.data).toLocaleDateString("pt-BR") : "—";
 
     // Cabeçalho do pedido
@@ -1290,9 +1425,7 @@ function togglePedidoHistorico(rowId) {
   }
 }
 
-// ============================================================
 // --- SELECTS ---
-// ============================================================
 
 function atualizarSelects() {
   const pedCliente = document.getElementById("ped-cliente");
@@ -1328,9 +1461,7 @@ function atualizarSelects() {
   }
 }
 
-// ============================================================
 // --- EVENTOS DE TECLADO ---
-// ============================================================
 
 function handleEnterKey(event, nextFieldId) {
   if (event.key === 'Enter') {
@@ -1343,9 +1474,7 @@ function handleEnterKey(event, nextFieldId) {
   }
 }
 
-// ============================================================
 // --- EVENTOS GLOBAIS ---
-// ============================================================
 
 document.addEventListener('click', function(e) {
   const sugestoes = document.getElementById('categoria-sugestoes');
@@ -1362,9 +1491,7 @@ if (modalCat) {
   });
 }
 
-// ============================================================
 // --- BUSCA EM TEMPO REAL ---
-// ============================================================
 
 function filtrarEstoque() {
   const busca = document.getElementById('busca-produto').value.toLowerCase().trim();
@@ -1413,9 +1540,7 @@ function filtrarEstoque() {
   }).join("");
 }
 
-// ============================================================
 // --- FILTRO POR CATEGORIA (ESTOQUE) ---
-// ============================================================
 
 function filtrarCategoriaEstoque(categoria) {
   document.querySelectorAll('#filtro-categoria-estoque .category-button').forEach(btn => {
@@ -1476,9 +1601,7 @@ function filtrarCategoriaEstoque(categoria) {
   }).join("");
 }
 
-// ============================================================
 // --- ATUALIZAR FILTRO DE CATEGORIA (ESTOQUE) ---
-// ============================================================
 
 function atualizarFiltroCategoriaEstoque() {
   const container = document.getElementById('filtro-categoria-estoque');
@@ -1501,9 +1624,7 @@ function atualizarFiltroCategoriaEstoque() {
   });
 }
 
-// ============================================================
 // --- MODAL DE DESCRIÇÃO ---
-// ============================================================
 
 function mostrarDescricao(descricaoCompleta) {
   const modal = document.createElement('div');
@@ -1521,9 +1642,7 @@ function mostrarDescricao(descricaoCompleta) {
   document.body.appendChild(modal);
 }
 
-// ============================================================
 // --- RESUMO FINANCEIRO ---
-// ============================================================
 
 function atualizarResumoFinanceiro() {
   let totalReceber = 0;
@@ -1536,7 +1655,7 @@ function atualizarResumoFinanceiro() {
       .reduce((s, p) => s + p.valorPago, 0) +
       pagamentos.filter(pg => pg.clienteId === cliente.id)
         .reduce((s, pg) => s + pg.valor, 0);
-    totalReceber += Math.max(0, totalPedidos - totalPago);
+    totalReceber += arredondarMoeda(Math.max(0, totalPedidos - totalPago));
   });
 
   let totalEstoque = 0;
@@ -1554,15 +1673,13 @@ function atualizarResumoFinanceiro() {
   const elCusto = document.getElementById("resumo-custo");
   const elLucro = document.getElementById("resumo-lucro");
 
-  if (elReceber) elReceber.textContent = `R$ ${totalReceber.toFixed(2)}`;
+  if (elReceber) elReceber.textContent = `R$ ${arredondarMoeda(totalReceber).toFixed(2)}`;
   if (elEstoque) elEstoque.textContent = `R$ ${totalEstoque.toFixed(2)}`;
   if (elCusto) elCusto.textContent = `R$ ${totalCusto.toFixed(2)}`;
   if (elLucro) elLucro.textContent = `R$ ${lucroEstimado.toFixed(2)}`;
 }
 
-// ============================================================
 // --- LIMPEZA SECRETA (Ctrl + Alt + P) ---
-// ============================================================
 
 window.addEventListener('keydown', async (e) => {
   if (e.key === 'p' && e.ctrlKey && e.altKey) {
