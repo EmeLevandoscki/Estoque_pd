@@ -331,6 +331,21 @@ function showTab(name, btn) {
 // --- ESTOQUE ---
 // ============================================================
 
+function getQuantidadeProduto(produto) {
+  return produto && produto.quantidade !== undefined ? Number(produto.quantidade) : 0;
+}
+
+function isProdutoAtivo(produto) {
+  if (produto && produto.ativo !== undefined) return Boolean(produto.ativo);
+  return getQuantidadeProduto(produto) > 0;
+}
+
+function getStatusTag(produto) {
+  return isProdutoAtivo(produto)
+    ? '<span class="badge-promo" style="background:#dcfce7;color:#166534;margin-left:6px;">ativo</span>'
+    : '<span class="badge-promo" style="background:#fee2e2;color:#b91c1c;margin-left:6px;">inativo</span>';
+}
+
 function renderEstoque() {
   const tbody = document.getElementById("tbody-estoque");
   if (!produtos.length) {
@@ -338,8 +353,16 @@ function renderEstoque() {
     atualizarFiltroCategoriaEstoque();
     return;
   }
-  tbody.innerHTML = produtos.map(p => {
-    const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
+  const produtosOrdenados = [...produtos].sort((a, b) => {
+    const aZero = getQuantidadeProduto(a) === 0;
+    const bZero = getQuantidadeProduto(b) === 0;
+    if (aZero && !bZero) return 1;
+    if (!aZero && bZero) return -1;
+    return (a.nome || '').localeCompare(b.nome || '');
+  });
+
+  tbody.innerHTML = produtosOrdenados.map(p => {
+    const qtdFinal = getQuantidadeProduto(p);
     const custoFinal = p.precoCusto || 0;
     const precoFinal = p.precoVenda || 0;
     const emPromocao = p.emPromocao === "sim";
@@ -349,9 +372,10 @@ function renderEstoque() {
     const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
     const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
     const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
+    const statusTag = getStatusTag(p);
     return `
       <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}</td>
         <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
         <td>
           <div class="qty-ctrl">
@@ -381,9 +405,9 @@ function renderEstoque() {
 async function ajustarQty(id, delta) {
   const p = produtos.find(prod => prod.id === id);
   if (!p) return;
-  const qtdAtual = p.quantidade !== undefined ? p.quantidade : 0;
+  const qtdAtual = getQuantidadeProduto(p);
   const novaQty = Math.max(0, qtdAtual + delta);
-  await dbFS.collection("produtos").doc(id).update({ quantidade: novaQty });
+  await dbFS.collection("produtos").doc(id).update({ quantidade: novaQty, ativo: novaQty > 0 });
 }
 
 async function salvarProduto() {
@@ -401,17 +425,18 @@ async function salvarProduto() {
     return;
   }
   salvarCategoria(cat);
+  const produtoAtivo = qty > 0;
 
   if (id) {
     await dbFS.collection("produtos").doc(id).update({
-      nome, categoria: cat, quantidade: qty,
+      nome, categoria: cat, quantidade: qty, ativo: produtoAtivo,
       precoCusto: custo, precoVenda: preco,
       emPromocao: promocao, descricao: descricao
     });
     toast("Produto atualizado.");
   } else {
     await dbFS.collection("produtos").add({
-      nome, categoria: cat, quantidade: qty,
+      nome, categoria: cat, quantidade: qty, ativo: produtoAtivo,
       precoCusto: custo, precoVenda: preco,
       emPromocao: promocao, descricao: descricao,
       data: new Date().toISOString()
@@ -784,7 +809,11 @@ function adicionarItemPedido() {
   if (!produtoId) { toast("Selecione um produto."); return; }
   const prod = produtos.find(p => p.id === produtoId);
   if (!prod) return;
-  const qtdAtual = prod.quantidade !== undefined ? prod.quantidade : 0;
+  if (!isProdutoAtivo(prod)) {
+    toast(prod.nome + " está indisponível por estar sem estoque.");
+    return;
+  }
+  const qtdAtual = getQuantidadeProduto(prod);
   const existente = itensPedido.find(i => i.produtoId === produtoId);
   const jaAdicionado = existente ? existente.quantidade : 0;
   if (jaAdicionado + qty > qtdAtual) {
@@ -865,9 +894,11 @@ async function fazerPedido() {
   for (const item of itensPedido) {
     const prod = produtos.find(p => p.id === item.produtoId);
     if (prod) {
-      const qtdAtual = prod.quantidade !== undefined ? prod.quantidade : 0;
+      const qtdAtual = getQuantidadeProduto(prod);
+      const novaQty = Math.max(0, qtdAtual - item.quantidade);
       await dbFS.collection("produtos").doc(item.produtoId).update({
-        quantidade: Math.max(0, qtdAtual - item.quantidade)
+        quantidade: novaQty,
+        ativo: novaQty > 0
       });
     }
   }
@@ -1025,9 +1056,9 @@ function atualizarSelects() {
     pedProduto.innerHTML = '<option value="">Selecione...</option>';
     const filtroAtivo = Array.from(document.querySelectorAll('#filtro-categoria .category-button.active')).find(btn => btn.textContent !== 'Todas');
     const categoriaFiltrada = filtroAtivo ? filtroAtivo.textContent : null;
-    const produtosFiltrados = !categoriaFiltrada ? produtos : produtos.filter(p => p.categoria === categoriaFiltrada);
+    const produtosFiltrados = (!categoriaFiltrada ? produtos : produtos.filter(p => p.categoria === categoriaFiltrada)).filter(p => isProdutoAtivo(p));
     produtosFiltrados.forEach(p => {
-      const qtdAtual = p.quantidade !== undefined ? p.quantidade : 0;
+      const qtdAtual = getQuantidadeProduto(p);
       const precoFinal = p.precoVenda || 0;
       const categoria = p.categoria ? ` (${p.categoria})` : '';
       const option = document.createElement('option');
@@ -1086,7 +1117,7 @@ function filtrarEstoque() {
     return;
   }
   tbody.innerHTML = produtosFiltrados.map(p => {
-    const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
+    const qtdFinal = getQuantidadeProduto(p);
     const custoFinal = p.precoCusto || 0;
     const precoFinal = p.precoVenda || 0;
     const emPromocao = p.emPromocao === "sim";
@@ -1096,9 +1127,10 @@ function filtrarEstoque() {
     const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
     const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
     const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
+    const statusTag = getStatusTag(p);
     return `
       <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}</td>
         <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
         <td>
           <div class="qty-ctrl">
@@ -1148,7 +1180,7 @@ function filtrarCategoriaEstoque(categoria) {
     return;
   }
   tbody.innerHTML = produtosFiltrados.map(p => {
-    const qtdFinal = p.quantidade !== undefined ? p.quantidade : 0;
+    const qtdFinal = getQuantidadeProduto(p);
     const custoFinal = p.precoCusto || 0;
     const precoFinal = p.precoVenda || 0;
     const emPromocao = p.emPromocao === "sim";
@@ -1158,9 +1190,10 @@ function filtrarCategoriaEstoque(categoria) {
     const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
     const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
     const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
+    const statusTag = getStatusTag(p);
     return `
       <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}</td>
+        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}</td>
         <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
         <td>
           <div class="qty-ctrl">
