@@ -784,10 +784,9 @@ tr:hover td {
 .client-history {
   margin-top: 12px;
   padding: 14px;
-  background: #fffef2;
+  background: #f8fafc;
   border-radius: 8px;
-  border: 1px solid #fef08a;
-  border-left: 4px solid #eab308;
+  border: 1px solid #e2e8f0;
   display: none;
   animation: slideDown 0.25s ease;
 }
@@ -795,39 +794,6 @@ tr:hover td {
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.client-history h4 {
-  margin-bottom: 8px;
-  color: #854d0e;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.client-history .history-item {
-  padding: 6px 0;
-  border-bottom: 1px dashed #fef08a;
-  font-size: 13px;
-  color: #451a03;
-}
-
-.client-history .history-item:last-child {
-  border-bottom: none;
-}
-
-.client-history .history-item .prod-name {
-  font-weight: 600;
-}
-
-.client-history .history-item .prod-qty {
-  color: #713f12;
-  font-weight: 500;
-}
-
-.client-history .history-item .prod-total {
-  font-weight: 700;
-  float: right;
 }
 
 .client-row .client-name {
@@ -854,9 +820,56 @@ tr:hover td {
   transform: rotate(180deg);
 }
 
-/* --- CLIENTE HISTORY REDESIGN --- */
+/* --- RESUMO DO CLIENTE (topo do histórico) --- */
+.ch-resumo-nome {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.ch-resumo-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ch-resumo-card {
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.ch-resumo-card .ch-resumo-label {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.ch-resumo-card .ch-resumo-valor {
+  font-size: 18px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.ch-resumo-card.devendo {
+  background: #fef3f2;
+}
+
+.ch-resumo-card.devendo .ch-resumo-valor {
+  color: #ef4444;
+}
+
+.ch-resumo-card.pago {
+  background: #f0fdf4;
+}
+
+.ch-resumo-card.pago .ch-resumo-valor {
+  color: #059669;
+}
+
+/* --- SEÇÕES (PEDIDOS / PAGAMENTOS RECEBIDOS) --- */
 .ch-section {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .ch-section-title {
@@ -864,48 +877,124 @@ tr:hover td {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 6px 10px;
-  border-radius: 4px;
+  color: #94a3b8;
   margin-bottom: 8px;
 }
 
-.ch-pedidos-title {
-  background: #fef3c7;
-  color: #92400e;
+.ch-empty {
+  color: #94a3b8;
+  font-size: 13px;
+  padding: 8px 0;
 }
 
-.ch-pagamentos-title {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.ch-pedido {
-  background: #fffef5;
-  border: 1px solid #fef08a;
-  border-radius: 6px;
+/* --- CARD DE PEDIDO --- */
+.pedido-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #cbd5e1;
+  border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 8px;
+  cursor: pointer;
 }
 
-.ch-pedido-header {
+.pedido-card.status-aberto { border-left-color: #E24B4A; }
+.pedido-card.status-parcial { border-left-color: #EF9F27; }
+.pedido-card.status-pago { border-left-color: #97C459; }
+
+.pedido-card-top {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  color: #713f12;
-  margin-bottom: 6px;
-  padding-bottom: 6px;
-  border-bottom: 1px dashed #fef08a;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.ch-pedido-header span:first-child {
-  font-weight: 600;
+.pedido-card-data {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
 }
 
-.ch-pedido-header .badge {
-  margin-left: auto;
-  font-size: 10px;
-  padding: 2px 8px;
+.status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.status-badge.status-aberto { background: #FCEBEB; color: #A32D2D; }
+.status-badge.status-parcial { background: #FAEEDA; color: #854F0B; }
+.status-badge.status-pago { background: #EAF3DE; color: #3B6D11; }
+
+.pedido-card-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.pedido-card-arrow {
+  transition: transform 0.2s ease;
+  flex: 0 0 auto;
+}
+
+.pedido-card.open .pedido-card-arrow {
+  transform: rotate(180deg);
+}
+
+.pedido-progress {
+  margin-top: 8px;
+}
+
+.pedido-progress-bar {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.pedido-progress-fill {
+  height: 100%;
+  background: #EF9F27;
+  border-radius: 100px;
+}
+
+.pedido-progress-label {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.pedido-card-footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.pedido-card-footer span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.pedido-card-footer strong {
+  font-size: 15px;
+  font-weight: 500;
+  color: #A32D2D;
+}
+
+.pedido-card-itens {
+  display: none;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e2e8f0;
+  cursor: default;
 }
 
 .ch-item {
@@ -914,7 +1003,7 @@ tr:hover td {
   gap: 8px;
   padding: 3px 0;
   font-size: 12px;
-  color: #451a03;
+  color: #334155;
 }
 
 .ch-item-nome {
@@ -924,7 +1013,7 @@ tr:hover td {
 
 .ch-item-cat {
   font-weight: 400;
-  color: #92400e;
+  color: #64748b;
   font-size: 11px;
 }
 
@@ -943,47 +1032,55 @@ tr:hover td {
   font-size: 11px;
 }
 
-.ch-pagamento {
+/* --- PAGAMENTOS RECEBIDOS --- */
+.pagamentos-lista {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 12px;
+}
+
+.pagamento-linha {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  border-bottom: 1px dashed #bbf7d0;
-  font-size: 12px;
-  width: 100%;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.ch-pagamento:last-child {
+.pagamento-linha:last-child {
   border-bottom: none;
 }
 
-.ch-pg-valor {
-  font-weight: 700;
-  color: #059669;
+.pagamento-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #97C459;
+  flex: 0 0 auto;
 }
 
-.ch-pg-forma {
-  background: #eff6ff;
-  color: #1e40af;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 10px;
-  text-transform: uppercase;
-  white-space: nowrap;
-  min-width: 110px;
+.pagamento-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.ch-pg-data {
-  color: #6b7280;
-  margin-left: auto;
+.pagamento-data {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.pagamento-forma {
   font-size: 11px;
+  color: #94a3b8;
 }
 
-.ch-pagamentos-list {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed #bbf7d0;
+.pagamento-valor {
+  font-size: 14px;
+  font-weight: 500;
+  color: #3B6D11;
+  flex: 0 0 auto;
 }
 
 /* ==================== */
@@ -1195,13 +1292,8 @@ tr:hover td {
     padding: 12px !important;
   }
 
-  .client-history h4 {
-    font-size: 12px !important;
-  }
-
-  .client-history .history-item {
-    font-size: 12px !important;
-    padding: 5px 0 !important;
+  .ch-resumo-cards {
+    gap: 8px !important;
   }
 
   .client-row .client-name {

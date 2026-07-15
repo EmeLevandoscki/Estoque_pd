@@ -488,6 +488,11 @@ function formatarItensCombo(itens) {
   return itens.map(item => `${item.nome} x${item.quantidade}`).join(', ');
 }
 
+function formatarFormaPagamento(forma) {
+  const nomes = { dinheiro: 'Dinheiro', pix: 'Pix', cartao: 'Cartão', debito: 'Débito', credito: 'Crédito' };
+  return nomes[forma] || (forma || '—');
+}
+
 function getHtmlProdutoEstoque(p) {
   const qtdFinal = getQuantidadeProduto(p);
   const custoFinal = p.precoCusto || 0;
@@ -719,16 +724,52 @@ function renderClientes() {
     const pedidosOrdenados = [...pedidosDoCliente].sort((a, b) => new Date(a.data) - new Date(b.data));
     let abatimentosRestantes = totalAbatimentos;
     const saldoPorPedido = {};
+    const pagoPorPedido = {};
     pedidosOrdenados.forEach(p => {
       const jaPagoNoPedido = p.valorPago || 0;
       const restantePedido = Math.max(0, p.valorTotal - jaPagoNoPedido);
       const abatimentoParaEste = Math.min(restantePedido, abatimentosRestantes);
       abatimentosRestantes = Math.max(0, abatimentosRestantes - abatimentoParaEste);
       saldoPorPedido[p.id] = arredondarMoeda(Math.max(0, p.valorTotal - jaPagoNoPedido - abatimentoParaEste));
+      pagoPorPedido[p.id] = arredondarMoeda(jaPagoNoPedido + abatimentoParaEste);
     });
 
-    // Filtra APENAS pedidos pendentes (saldo > 0.01)
+    const qtdPedidos = pedidosDoCliente.length;
     const pedidosPendentes = pedidosDoCliente.filter(p => arredondarMoeda(saldoPorPedido[p.id] || 0) > 0.01);
+    const idsPedidosPendentes = new Set(pedidosPendentes.map(p => p.id));
+
+    // Replica a mesma distribuição (pedidos mais antigos primeiro), mas pagamento a pagamento
+    // em ordem cronológica, só para descobrir quais pedidos cada pagamento ajudou a quitar.
+    // Não altera saldoPorPedido/pagoPorPedido — é só para decidir o que aparece na lista.
+    const restanteSimulado = {};
+    pedidosOrdenados.forEach(p => {
+      restanteSimulado[p.id] = Math.max(0, p.valorTotal - (p.valorPago || 0));
+    });
+    let ponteiroPedido = 0;
+    const pedidosTocadosPorPagamento = {};
+    const pagamentosCronologicos = pagamentos
+      .filter(pg => pg.clienteId === c.id)
+      .sort((a, b) => new Date(a.data) - new Date(b.data));
+    pagamentosCronologicos.forEach(pg => {
+      let valorRestante = pg.valor;
+      const tocados = new Set();
+      while (valorRestante > 0.01 && ponteiroPedido < pedidosOrdenados.length) {
+        const pedidoAtual = pedidosOrdenados[ponteiroPedido];
+        if (restanteSimulado[pedidoAtual.id] <= 0.01) { ponteiroPedido++; continue; }
+        const aplicar = Math.min(restanteSimulado[pedidoAtual.id], valorRestante);
+        restanteSimulado[pedidoAtual.id] -= aplicar;
+        valorRestante -= aplicar;
+        tocados.add(pedidoAtual.id);
+      }
+      pedidosTocadosPorPagamento[pg.id] = tocados;
+    });
+
+    const pagamentosDoCliente = pagamentosCronologicos
+      .filter(pg => {
+        const tocados = pedidosTocadosPorPagamento[pg.id];
+        return tocados && [...tocados].some(id => idsPedidosPendentes.has(id));
+      })
+      .sort((a, b) => new Date(b.data) - new Date(a.data));
 
     return `
       <tr class="client-row" id="linha-cliente-${c.id}">
@@ -737,62 +778,89 @@ function renderClientes() {
             ${c.nome} ${pedidosPendentes.length > 0 ? '<span class="badge badge-pend" style="font-size:11px; margin-left:6px;">' + pedidosPendentes.length + ' pendente' + (pedidosPendentes.length > 1 ? 's' : '') + '</span>' : ''} <span class="arrow">▼</span>
           </div>
           <div class="client-history" id="historico-${c.id}">
+            <div class="ch-resumo-nome">${c.nome} · ${qtdPedidos} pedido${qtdPedidos === 1 ? '' : 's'}</div>
+            <div class="ch-resumo-cards">
+              <div class="ch-resumo-card devendo">
+                <div class="ch-resumo-label">Devendo</div>
+                <div class="ch-resumo-valor">R$ ${saldo.toFixed(2)}</div>
+              </div>
+              <div class="ch-resumo-card pago">
+                <div class="ch-resumo-label">Já pago</div>
+                <div class="ch-resumo-valor">R$ ${totalPago.toFixed(2)}</div>
+              </div>
+            </div>
 
-            ${pedidosPendentes.length > 0 ? `
-              <div class="ch-section">
-                <div class="ch-section-title ch-pedidos-title">Dívidas pendentes</div>
-                ${pedidosPendentes.map(p => {
-                  const saldoRestante = saldoPorPedido[p.id] || 0;
-                  const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
-                  const itensHtml = (p.itens && p.itens.length) ? p.itens.map(i => `
-                    <div class="ch-item">
-                      <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
-                      <span class="ch-item-qty">x${i.quantidade || 0}</span>
-                      <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
-                      ${getHtmlDescricaoItem(i.descricao)}
+            <div class="ch-section">
+              <div class="ch-section-title">Pedidos</div>
+              ${pedidosPendentes.length > 0 ? pedidosPendentes.map(p => {
+                const saldoRestante = saldoPorPedido[p.id] || 0;
+                const pagoNoPedido = pagoPorPedido[p.id] || 0;
+                const statusKey = saldoZero(saldoRestante) ? 'pago' : (pagoNoPedido > 0.01 ? 'parcial' : 'aberto');
+                const statusLabel = statusKey === 'pago' ? 'Pago' : (statusKey === 'parcial' ? 'Parcial' : 'Em aberto');
+                const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
+                const qtdItensPedido = (p.itens || []).reduce((s, i) => s + (i.quantidade || 0), 0);
+                const pct = p.valorTotal > 0 ? Math.min(100, Math.round((pagoNoPedido / p.valorTotal) * 100)) : 0;
+                const cardId = `pedido-card-${c.id}-${p.id}`;
+                const itensHtml = (p.itens && p.itens.length) ? p.itens.map(i => `
+                  <div class="ch-item">
+                    <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
+                    <span class="ch-item-qty">x${i.quantidade || 0}</span>
+                    <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
+                    ${getHtmlDescricaoItem(i.descricao)}
+                  </div>
+                `).join('') : '<div class="ch-empty">Sem itens.</div>';
+
+                return `
+                  <div class="pedido-card status-${statusKey}" id="${cardId}" onclick="togglePedidoCard('${cardId}')">
+                    <div class="pedido-card-top">
+                      <span class="pedido-card-data">${data}</span>
+                      <span class="status-badge status-${statusKey}">${statusLabel}</span>
                     </div>
-                  `).join('') : '';
+                    <div class="pedido-card-sub">
+                      <span>${qtdItensPedido} ${qtdItensPedido === 1 ? 'item' : 'itens'} · ${formatarFormaPagamento(p.formaPagamento)}</span>
+                      <span class="pedido-card-arrow">▾</span>
+                    </div>
+                    ${statusKey === 'parcial' ? `
+                      <div class="pedido-progress">
+                        <div class="pedido-progress-bar"><div class="pedido-progress-fill" style="width:${pct}%"></div></div>
+                        <div class="pedido-progress-label">Pago R$ ${pagoNoPedido.toFixed(2)} de R$ ${p.valorTotal.toFixed(2)} (${pct}%)</div>
+                      </div>
+                    ` : ''}
+                    ${saldoRestante > 0.01 ? `
+                      <div class="pedido-card-footer">
+                        <span>Falta pagar</span>
+                        <strong>R$ ${saldoRestante.toFixed(2)}</strong>
+                      </div>
+                    ` : ''}
+                    <div class="pedido-card-itens" onclick="event.stopPropagation()">
+                      ${itensHtml}
+                    </div>
+                  </div>
+                `;
+              }).join('') : '<div class="ch-empty">Nenhum pedido em aberto.</div>'}
+            </div>
 
-                  // Busca todos os abatimentos feitos para este cliente (não por data do pedido)
-                  const abatimentosDoPedido = pagamentos
-                    .filter(pg => pg.clienteId === c.id)
-                    .filter(pg => {
-                      // Calcula quanto do abatimento foi atribuído a este pedido
-                      const jaPagoNoPedido = p.valorPago || 0;
-                      const restantePedido = Math.max(0, p.valorTotal - jaPagoNoPedido);
-                      const abatimentoParaEste = Math.min(restantePedido, totalAbatimentos);
-                      return abatimentoParaEste > 0;
-                    });
-
-                  // Formata os abatimentos como registros com mensagem explicativa
-                  const abatimentosHtml = abatimentosDoPedido.length > 0 ? abatimentosDoPedido.map(pg => {
-                    const pgData = new Date(pg.data).toLocaleDateString("pt-BR");
+            <div class="ch-section">
+              <div class="ch-section-title">Pagamentos recebidos</div>
+              ${pagamentosDoCliente.length > 0 ? `
+                <div class="pagamentos-lista">
+                  ${pagamentosDoCliente.map(pg => {
+                    const pgData = pg.data ? new Date(pg.data).toLocaleDateString("pt-BR") : "—";
                     const forma = pg.formaPagamento === 'dinheiro' ? 'Dinheiro' : 'PIX';
                     return `
-                      <div class="ch-pagamento">
-                        <span class="ch-pg-data">${pgData}</span>
-                        <span class="ch-pg-valor">- R$ ${pg.valor.toFixed(2)}</span>
-                        <span class="ch-pg-forma">Foi pago com ${forma}</span>
+                      <div class="pagamento-linha">
+                        <span class="pagamento-dot"></span>
+                        <div class="pagamento-info">
+                          <div class="pagamento-data">${pgData}</div>
+                          <div class="pagamento-forma">${forma}</div>
+                        </div>
+                        <div class="pagamento-valor">R$ ${pg.valor.toFixed(2)}</div>
                       </div>
                     `;
-                  }).join('') : '';
-
-                  return `
-                    <div class="ch-pedido">
-                      <div class="ch-pedido-header">
-                        <span><strong>${data}</strong></span>
-                        <span>Total: <strong>R$ ${p.valorTotal.toFixed(2)}</strong></span>
-                        <span style="color: #ef4444; font-weight: 600; font-size: 12px;">Falta: R$ ${saldoRestante.toFixed(2)}</span>
-                      </div>
-                      ${itensHtml}
-                      ${abatimentosHtml ? `<div class="ch-pagamentos-list">${abatimentosHtml}</div>` : ''}
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            ` : `
-              <div style="color: #059669; font-size: 13px; padding: 8px 0; font-weight: 500;">✓ Sem dívidas pendentes</div>
-            `}
+                  }).join('')}
+                </div>
+              ` : '<div class="ch-empty">Nenhum pagamento registrado.</div>'}
+            </div>
           </div>
         </td>
         <td class="${saldoClass}" data-label="Saldo devedor">R$ ${saldo.toFixed(2)}</td>
@@ -844,6 +912,15 @@ function toggleHistorico(clienteId) {
       delete timersFechamento[clienteId];
     }, 10000);
   }
+}
+
+function togglePedidoCard(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  const itensDiv = card.querySelector('.pedido-card-itens');
+  const abrir = !card.classList.contains('open');
+  card.classList.toggle('open', abrir);
+  if (itensDiv) itensDiv.style.display = abrir ? 'block' : 'none';
 }
 
 // FUNÇÃO ATUALIZADA: Abater pagamento com seleção de pedido
