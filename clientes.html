@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clientes - Gerenciador de Estoque & Pedidos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="lock-screen" id="tela-bloqueio">
+    <div class="lock-card">
+      <h2 id="lock-titulo">Sistema Bloqueado</h2>
+      <p id="lock-subtitulo">Insira a sua senha de acesso</p>
+      <input type="password" id="campo-senha" placeholder="••••" onkeydown="if(event.key==='Enter') verificarSenha()">
+      <button class="primary" onclick="verificarSenha()" id="btn-lock">Entrar</button>
+    </div>
+  </div>
+
+  <div class="app" id="app-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      <h1>Gerenciador de Estoque & Pedidos</h1>
+      <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
+    </div>
+
+    <div class="tabs">
+      <a class="tab-btn" href="index.html">Estoque</a>
+      <a class="tab-btn" href="pedidos.html">Pedidos</a>
+      <a class="tab-btn active" href="clientes.html">Clientes</a>
+      <a class="tab-btn" href="historico.html">Histórico</a>
+    </div>
+
+    <!-- PAINEL DE CLIENTES ATUALIZADO -->
+    <div id="clientes" class="panel active">
+      <h2 id="cliente-title">Novo cliente</h2>
+      <input type="hidden" id="edit-cliente-id">
+      <div class="form-row">
+        <div class="form-group" style="max-width:400px">
+          <label>Nome do Cliente</label>
+          <input id="c-nome" placeholder="Ex: Maria Silva" onkeydown="handleEnterKey(event, 'salvar-cliente')">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="primary" onclick="salvarCliente()" id="salvar-cliente">Salvar cliente</button>
+        <button onclick="cancelarEdicaoCliente()">Cancelar</button>
+      </div>
+
+      <!-- RESUMO FINANCEIRO -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0 1rem; font-size: 14px;">
+        <h3 style="color: #0f172a; margin-top: 0; margin-bottom: 1rem;"> Resumo Financeiro</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-weight: 500;">
+          <div style="background: #e0f2fe; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="color: #0369a1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Total a receber</div>
+            <div id="resumo-receber" style="font-size: 18px; color: #ef4444; margin-top: 4px;">R$ 0,00</div>
+          </div>
+          <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="color: #059669; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Valor em estoque</div>
+            <div id="resumo-estoque" style="font-size: 18px; color: #10b981; margin-top: 4px;">R$ 0,00</div>
+          </div>
+          <div style="background: #fef3f2; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="color: #dc2626; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Total gasto (custo)</div>
+            <div id="resumo-custo" style="font-size: 18px; color: #ef4444; margin-top: 4px;">R$ 0,00</div>
+          </div>
+          <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="color: #374151; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Lucro estimado</div>
+            <div id="resumo-lucro" style="font-size: 18px; color: #059669; margin-top: 4px;">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Clientes cadastrados</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Saldo devedor</th>
+              <th>Abater pagamento</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-clientes"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

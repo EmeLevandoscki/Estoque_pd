@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedidos - Gerenciador de Estoque & Pedidos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="lock-screen" id="tela-bloqueio">
+    <div class="lock-card">
+      <h2 id="lock-titulo">Sistema Bloqueado</h2>
+      <p id="lock-subtitulo">Insira a sua senha de acesso</p>
+      <input type="password" id="campo-senha" placeholder="••••" onkeydown="if(event.key==='Enter') verificarSenha()">
+      <button class="primary" onclick="verificarSenha()" id="btn-lock">Entrar</button>
+    </div>
+  </div>
+
+  <div class="app" id="app-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      <h1>Gerenciador de Estoque & Pedidos</h1>
+      <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
+    </div>
+
+    <div class="tabs">
+      <a class="tab-btn" href="index.html">Estoque</a>
+      <a class="tab-btn active" href="pedidos.html">Pedidos</a>
+      <a class="tab-btn" href="clientes.html">Clientes</a>
+      <a class="tab-btn" href="historico.html">Histórico</a>
+    </div>
+
+    <!-- PAINEL DE PEDIDOS (inalterado) -->
+    <div id="pedidos" class="panel active">
+      <h2>Novo pedido</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente</label>
+          <select id="ped-cliente"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Forma de pagamento</label>
+          <select id="ped-forma">
+            <option value="dinheiro">Dinheiro</option>
+            <option value="pix">PIX</option>
+            <option value="cartao">Cartão</option>
+            <option value="debito">Débito</option>
+            <option value="credito">Crédito</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Parcelas</label>
+          <select id="ped-parcelas">
+            <option value="1">1x (à vista)</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Valor pago agora (R$)</label>
+          <input type="number" id="ped-pago" value="0" step="0.01" min="0" onkeydown="handleEnterKey(event, 'ped-produto')">
+        </div>
+      </div>
+      <hr class="sep">
+      <h3>Filtrar produtos por categoria</h3>
+      <div class="category-filter" id="filtro-categoria">
+        <button class="category-button active" onclick="filtrarCategoria('todos')">Todas</button>
+      </div>
+      <h3>Adicionar produtos ao pedido</h3>
+      <div class="item-linha">
+        <div class="form-group">
+          <label>Produto / Combo do estoque</label>
+          <input type="text" id="ped-produto" placeholder="Digite para buscar um produto ou combo..." list="lista-produtos-pedido" autocomplete="off" oninput="atualizarListaProdutosPedido()">
+          <datalist id="lista-produtos-pedido"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Qtd</label>
+          <input type="number" id="ped-qty" value="1" min="1" onkeydown="handleEnterKey(event, 'adicionar-item')">
+        </div>
+        <button class="primary" onclick="adicionarItemPedido()" id="adicionar-item">Adicionar</button>
+      </div>
+      <small style="display:block; color:#64748b; margin-top:8px;">Se escolher um combo do estoque, ele monta o pedido com os produtos já cadastrados do combo, como se fosse um carinho montado na hora.</small>
+      <div id="itens-lista" style="margin-top:12px; min-height:32px"></div>
+      <div class="resumo-pedido" id="resumo-pedido" style="display:none">
+        <div id="resumo-itens"></div>
+        <div class="total" id="resumo-total"></div>
+      </div>
+      <div class="btn-row" style="margin-top:24px">
+        <button class="success" onclick="fazerPedido()">Registrar pedido</button>
+        <button onclick="limparPedido()">Limpar tudo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

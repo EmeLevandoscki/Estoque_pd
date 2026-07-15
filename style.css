@@ -162,6 +162,11 @@ h3 {
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+a.tab-btn {
+  text-decoration: none;
+  display: inline-block;
+}
+
 .panel {
   display: none;
   background: #fff;

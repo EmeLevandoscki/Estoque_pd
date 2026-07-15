@@ -9,20 +9,37 @@
 
 firebase.initializeApp(firebaseConfig);
 const dbFS = firebase.firestore();
+const authFB = firebase.auth();
 
 let produtos = [], clientes = [], pedidos = [], pagamentos = [];
 const SENHA_CORRETA = "181022";
 const NOMES_FIXOS = ["Emelly Levandoscki", "Taina Pinheiro Pomatti"];
 let timersFechamento = {};
 
-// ✅ Função para arredondar valores monetários com precisão
+// Função para arredondar valores monetários com precisão
 function arredondarMoeda(valor) {
   return Math.round(valor * 100) / 100;
 }
 
-// ✅ Função para comparar valores monetários com margem de erro (0.01)
+// Função para comparar valores monetários com margem de erro (0.01)
 function saldoZero(saldo) {
   return arredondarMoeda(saldo) <= 0.01;
+}
+
+// --- DESCRIÇÃO DE PRODUTOS ---
+
+function truncarTexto(texto, max) {
+  const t = texto || '';
+  return t.length > max ? t.substring(0, max) + '...' : t;
+}
+
+function escaparDescricao(texto) {
+  return (texto || '').replace(/'/g, "\\'").replace(/"/g, '"');
+}
+
+function getHtmlDescricaoItem(descricao) {
+  if (!descricao) return '';
+  return `<div class="item-desc" onclick="mostrarDescricao('${escaparDescricao(descricao)}')" style="font-size:11px;color:#64748b;margin-top:2px;cursor:pointer;text-decoration:underline dotted;">${truncarTexto(descricao, 40)}</div>`;
 }
 
 // --- CATEGORIAS ---
@@ -229,17 +246,26 @@ function verificarSenha() {
   }
 }
 
-function desbloquearApp() {
+async function desbloquearApp() {
   document.getElementById("tela-bloqueio").style.display = "none";
   document.getElementById("app-container").style.display = "block";
   document.getElementById("campo-senha").value = "";
-  ativarSincronizacaoEmTempoReal();
+  try {
+    if (!authFB.currentUser) {
+      await authFB.signInAnonymously();
+    }
+    ativarSincronizacaoEmTempoReal();
+  } catch (error) {
+    console.error("Erro ao autenticar:", error);
+    toast("Erro ao conectar com o banco de dados. Tente novamente.");
+  }
 }
 
 function bloquearSistema() {
   document.getElementById("app-container").style.display = "none";
   document.getElementById("tela-bloqueio").style.display = "flex";
   sessionStorage.removeItem('sistemaDesbloqueado');
+  authFB.signOut();
   inicializarSeguranca();
 }
 
@@ -312,15 +338,6 @@ function toast(msg) {
   setTimeout(() => t.classList.remove("show"), 2200);
 }
 
-// --- ABAS ---
-
-function showTab(name, btn) {
-  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  document.getElementById(name).classList.add("active");
-  btn.classList.add("active");
-}
-
 // --- ESTOQUE ---
 
 function getQuantidadeProduto(produto) {
@@ -364,7 +381,8 @@ function atualizarListaProdutosCombo() {
   
   datalist.innerHTML = produtosFiltrados.map(p => {
     const qtd = getQuantidadeProduto(p);
-    return `<option value="${p.nome}" data-id="${p.id}" data-preco="${p.precoVenda || 0}"> (${qtd} un.) — R$ ${(p.precoVenda || 0).toFixed(2)}</option>`;
+    const descricaoLabel = p.descricao ? ` — ${truncarTexto(p.descricao, 40)}` : '';
+    return `<option value="${p.nome}" data-id="${p.id}" data-preco="${p.precoVenda || 0}"> (${qtd} un.) — R$ ${(p.precoVenda || 0).toFixed(2)}${descricaoLabel}</option>`;
   }).join('');
 }
 
@@ -394,7 +412,8 @@ function adicionarItemAoCombo() {
     itemsComboTemp.push({
       produtoId: prod.id,
       nome: prod.nome,
-      quantidade: quantidade
+      quantidade: quantidade,
+      descricao: prod.descricao || ''
     });
   }
 
@@ -418,7 +437,7 @@ function renderizarItensComboTemp() {
 
   listDiv.style.display = 'block';
   tags.innerHTML = itemsComboTemp.map(item => `
-    <span style="display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; padding: 6px 10px; border-radius: 999px; border: 1px solid #bfdbfe; font-size: 13px; color: #0369a1;">
+    <span title="${escaparDescricao(item.descricao)}" style="display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; padding: 6px 10px; border-radius: 999px; border: 1px solid #bfdbfe; font-size: 13px; color: #0369a1;">
       ${item.nome} x${item.quantidade}
       <button type="button" onclick="removerItemDoComboTemp('${item.produtoId}')" style="border: none; background: none; cursor: pointer; color: #0369a1; font-weight: bold; padding: 0; margin: 0;">×</button>
     </span>
@@ -503,20 +522,21 @@ function getHtmlProdutoEstoque(p) {
 
 function renderEstoque() {
   const tbody = document.getElementById("tbody-estoque");
-  if (!produtos.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum produto cadastrado.</td></tr>';
-    atualizarFiltroCategoriaEstoque();
-    return;
-  }
-  const produtosOrdenados = [...produtos].sort((a, b) => {
-    const aZero = getQuantidadeProduto(a) === 0;
-    const bZero = getQuantidadeProduto(b) === 0;
-    if (aZero && !bZero) return 1;
-    if (!aZero && bZero) return -1;
-    return (a.nome || '').localeCompare(b.nome || '');
-  });
+  if (tbody) {
+    if (!produtos.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum produto cadastrado.</td></tr>';
+    } else {
+      const produtosOrdenados = [...produtos].sort((a, b) => {
+        const aZero = getQuantidadeProduto(a) === 0;
+        const bZero = getQuantidadeProduto(b) === 0;
+        if (aZero && !bZero) return 1;
+        if (!aZero && bZero) return -1;
+        return (a.nome || '').localeCompare(b.nome || '');
+      });
 
-  tbody.innerHTML = produtosOrdenados.map(getHtmlProdutoEstoque).join("");
+      tbody.innerHTML = produtosOrdenados.map(getHtmlProdutoEstoque).join("");
+    }
+  }
   atualizarFiltroCategoriaEstoque();
   atualizarResumoFinanceiro();
 }
@@ -656,13 +676,11 @@ function renderClientes() {
 
   const clientesOrdenados = [...ordenadosFixos, ...ordenadosPendencia, ...ordenadosSemPendencia];
 
-  if (!clientesOrdenados.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum cliente cadastrado.</td></tr>';
-    atualizarResumoFinanceiro();
-    return;
-  }
-
-  tbody.innerHTML = clientesOrdenados.map(c => {
+  if (tbody) {
+    if (!clientesOrdenados.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum cliente cadastrado.</td></tr>';
+    } else {
+      tbody.innerHTML = clientesOrdenados.map(c => {
     const totalPedidos = pedidos
       .filter(p => p.clienteId === c.id)
       .reduce((s, p) => s + p.valorTotal, 0);
@@ -681,7 +699,7 @@ function renderClientes() {
       .filter(p => p.clienteId === c.id)
       .sort((a, b) => new Date(b.data) - new Date(a.data));
 
-    // ✅ DISTRIBUIÇÃO CORRETA DE ABATIMENTOS:
+    // DISTRIBUIÇÃO CORRETA DE ABATIMENTOS:
     // Ordena pedidos do mais antigo para o mais novo e distribui os abatimentos
     // sequencialmente — cada pedido recebe o que sobra do anterior
     const pedidosOrdenados = [...pedidosDoCliente].sort((a, b) => new Date(a.data) - new Date(b.data));
@@ -717,6 +735,7 @@ function renderClientes() {
                       <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
                       <span class="ch-item-qty">x${i.quantidade || 0}</span>
                       <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
+                      ${getHtmlDescricaoItem(i.descricao)}
                     </div>
                   `).join('') : '';
 
@@ -778,12 +797,16 @@ function renderClientes() {
         </td>
       </tr>
     `;
-  }).join("");
+      }).join("");
+    }
+  }
 
   const sel = document.getElementById("filtro-cliente");
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Todos os clientes</option>' +
-    clientesOrdenados.map(c => `<option value="${c.id}"${c.id === cur ? " selected" : ""}>${c.nome}</option>`).join("");
+  if (sel) {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todos os clientes</option>' +
+      clientesOrdenados.map(c => `<option value="${c.id}"${c.id === cur ? " selected" : ""}>${c.nome}</option>`).join("");
+  }
 
   atualizarResumoFinanceiro();
 }
@@ -809,7 +832,7 @@ function toggleHistorico(clienteId) {
   }
 }
 
-// ✅ FUNÇÃO ATUALIZADA: Abater pagamento com seleção de pedido
+// FUNÇÃO ATUALIZADA: Abater pagamento com seleção de pedido
 async function abaterPagamento(clienteId, saldo) {
   const inp = document.getElementById("pay-val-" + clienteId);
   const valor = parseFloat(inp.value) || 0;
@@ -834,7 +857,7 @@ async function abaterPagamento(clienteId, saldo) {
   inp.value = 0;
 }
 
-// ✅ FUNÇÃO ATUALIZADA: Quitar tudo com seleção de pedido
+// FUNÇÃO ATUALIZADA: Quitar tudo com seleção de pedido
 async function quitarTudo(clienteId, saldo) {
   if (!confirm("Quitar todo o saldo de R$ " + saldo.toFixed(2) + "?")) return;
 
@@ -855,7 +878,7 @@ async function quitarTudo(clienteId, saldo) {
   toast(`Saldo de R$ ${saldo.toFixed(2)} quitado (${formaPagamento.toUpperCase()}).`);
 }
 
-// ✅ NOVA FUNÇÃO: Modal de seleção de forma de pagamento
+// NOVA FUNÇÃO: Modal de seleção de forma de pagamento
 function abrirModalFormaPagamento() {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
@@ -906,7 +929,7 @@ function abrirModalFormaPagamento() {
   });
 }
 
-// ✅ NOVA FUNÇÃO: Modal para selecionar qual pedido pagar
+// NOVA FUNÇÃO: Modal para selecionar qual pedido pagar
 function abrirModalPagamentoPorPedido(clienteId, valor) {
   return new Promise((resolve) => {
     // Busca pedidos pendentes do cliente
@@ -971,7 +994,7 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
             
             <label style="display: flex; align-items: center; padding: 10px; background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 6px; cursor: pointer; margin-top: 8px; transition: all 0.2s ease;">
               <input type="radio" name="pedido-select" value="todos" checked style="margin-right: 10px; cursor: pointer;">
-              <div style="font-weight: 600; color: #1e40af;">💳 Pagar de qualquer pedido (distribuir automaticamente)</div>
+              <div style="font-weight: 600; color: #1e40af;">Pagar de qualquer pedido (distribuir automaticamente)</div>
             </label>
           </div>
         </div>
@@ -980,10 +1003,10 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
           <label style="display: block; font-weight: 600; color: #475569; margin-bottom: 10px; font-size: 14px;">Forma de pagamento</label>
           <div style="display: flex; gap: 8px;">
             <button class="btn-forma" data-forma="dinheiro" style="flex: 1; background: #f0fdf4; color: #065f46; border: 2px solid #bbf7d0; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
-              💵 Dinheiro
+              Dinheiro
             </button>
             <button class="btn-forma" data-forma="pix" style="flex: 1; background: #eff6ff; color: #1e40af; border: 2px solid #bfdbfe; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
-              📱 PIX
+              PIX
             </button>
           </div>
         </div>
@@ -1088,13 +1111,14 @@ async function deletarCliente(id) {
 let itensPedido = [];
 
 function adicionarItemPedido() {
-  const sel = document.getElementById("ped-produto");
-  const produtoId = sel.value;
+  const input = document.getElementById("ped-produto");
+  const nomeDigitado = input.value.trim();
   const qty = parseInt(document.getElementById("ped-qty").value, 10) || 1;
-  if (!produtoId) { toast("Selecione um produto."); return; }
+  if (!nomeDigitado) { toast("Selecione um produto."); return; }
 
-  const prod = produtos.find(p => p.id === produtoId);
-  if (!prod) return;
+  const prod = produtos.find(p => (p.nome || '').toLowerCase() === nomeDigitado.toLowerCase());
+  if (!prod) { toast(`Produto "${nomeDigitado}" não encontrado.`); return; }
+  const produtoId = prod.id;
 
   if (prod.tipo === 'combo') {
     montarCombo(produtoId, qty);
@@ -1120,6 +1144,7 @@ function adicionarItemPedido() {
       preco: prod.precoVenda || 0, quantidade: qty,
       categoria: prod.categoria || 'Geral',
       tipo: prod.tipo || 'simples',
+      descricao: prod.descricao || '',
       itensCombo: []
     });
   }
@@ -1129,7 +1154,8 @@ function adicionarItemPedido() {
 }
 
 function montarCombo(comboSelecionado = null, qtdCombo = null) {
-  const comboId = comboSelecionado || document.getElementById("ped-produto").value;
+  const nomeDigitado = document.getElementById("ped-produto").value.trim();
+  const comboId = comboSelecionado || produtos.find(p => (p.nome || '').toLowerCase() === nomeDigitado.toLowerCase())?.id;
   const quantidadeCombo = qtdCombo !== null ? qtdCombo : (parseInt(document.getElementById("ped-qty").value, 10) || 1);
 
   if (!comboId) {
@@ -1191,6 +1217,7 @@ function montarCombo(comboSelecionado = null, qtdCombo = null) {
         quantidade: qtdNecessaria,
         categoria: produtoBase.categoria || 'Geral',
         tipo: 'simples',
+        descricao: produtoBase.descricao || '',
         itensCombo: []
       });
     }
@@ -1234,6 +1261,7 @@ function renderItensPedido() {
       <span class="item-tag">
         ${i.nome} (x${i.quantidade}) &mdash; R$ ${(i.preco * i.quantidade).toFixed(2)}
         <button onclick="removerItemPedido('${i.produtoId}')">&#10005;</button>
+        ${getHtmlDescricaoItem(i.descricao)}
         ${comboExtras}
       </span>
     `;
@@ -1241,9 +1269,12 @@ function renderItensPedido() {
 
   const total = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
   resumoItens.innerHTML = itensPedido.map(i => `
-    <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#475569;">
-      <span>${i.nome} <b>x${i.quantidade}</b></span>
-      <span>R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
+    <div style="margin-bottom:4px; color:#475569;">
+      <div style="display:flex; justify-content:space-between;">
+        <span>${i.nome} <b>x${i.quantidade}</b></span>
+        <span>R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
+      </div>
+      ${getHtmlDescricaoItem(i.descricao)}
     </div>
   `).join("");
   resumoTotal.innerHTML = `<span>Valor Total:</span> <span style="float:right">R$ ${total.toFixed(2)}</span>`;
@@ -1265,7 +1296,8 @@ async function fazerPedido() {
     itens: itensPedido.map(i => ({
       produtoId: i.produtoId, nome: i.nome, preco: i.preco,
       quantidade: i.quantidade, categoria: i.categoria,
-      tipo: i.tipo || 'simples', itensCombo: i.itensCombo || []
+      tipo: i.tipo || 'simples', itensCombo: i.itensCombo || [],
+      descricao: i.descricao || ''
     })),
     quantidade: itensPedido.reduce((s, i) => s + i.quantidade, 0),
     valorTotal, valorPago, parcelas,
@@ -1315,8 +1347,9 @@ function limparPedido() {
 // --- HISTÓRICO ---
 
 function renderHistorico() {
-  const filtro = document.getElementById("filtro-cliente").value;
   const tbody = document.getElementById("tbody-historico");
+  if (!tbody) return;
+  const filtro = document.getElementById("filtro-cliente")?.value || "";
   const lista = pedidos;
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido registrado.</td></tr>';
@@ -1331,7 +1364,7 @@ function renderHistorico() {
   filtrados.forEach(ped => {
     const c = clientes.find(x => x.id === ped.clienteId);
 
-    // ✅ DISTRIBUIÇÃO CORRETA DE ABATIMENTOS:
+    // DISTRIBUIÇÃO CORRETA DE ABATIMENTOS:
     // Soma apenas os abatimentos DO PRÓPRIO CLIENTE e distribui pelos pedidos
     // do mais antigo ao mais novo, sequencialmente
     const todosPedidosDoCliente = pedidos
@@ -1395,6 +1428,7 @@ function renderHistorico() {
           <span class="hist-item-qty">x${i.quantidade || 0}</span>
           <span class="hist-item-preco">R$ ${(i.preco || 0).toFixed(2)} un.</span>
           <span class="hist-item-sub">R$ ${subtotal}</span>
+          ${getHtmlDescricaoItem(i.descricao)}
         </div>
       `;
     }).join('') : '<div style="color:#94a3b8; padding:6px 0;">—</div>';
@@ -1441,24 +1475,27 @@ function atualizarSelects() {
     });
   }
 
-  const pedProduto = document.getElementById("ped-produto");
-  if (pedProduto) {
-    const valorAtualProduto = pedProduto.value;
-    pedProduto.innerHTML = '<option value="">Selecione...</option>';
-    const filtroAtivo = Array.from(document.querySelectorAll('#filtro-categoria .category-button.active')).find(btn => btn.textContent !== 'Todas');
-    const categoriaFiltrada = filtroAtivo ? filtroAtivo.textContent : null;
-    const produtosFiltrados = (!categoriaFiltrada ? produtos : produtos.filter(p => p.categoria === categoriaFiltrada)).filter(p => isProdutoAtivo(p));
-    produtosFiltrados.forEach(p => {
-      const qtdAtual = getQuantidadeProduto(p);
-      const precoFinal = p.precoVenda || 0;
-      const categoria = p.categoria ? ` (${p.categoria})` : '';
-      const option = document.createElement('option');
-      option.value = p.id;
-      option.textContent = `${p.nome || 'Sem nome'}${categoria} (${qtdAtual} un.) — R$ ${precoFinal.toFixed(2)}`;
-      if (p.id === valorAtualProduto) option.selected = true;
-      pedProduto.appendChild(option);
-    });
-  }
+  atualizarListaProdutosPedido();
+}
+
+function atualizarListaProdutosPedido() {
+  const datalist = document.getElementById("lista-produtos-pedido");
+  if (!datalist) return;
+  const input = document.getElementById("ped-produto");
+  const filtro = (input?.value || '').toLowerCase();
+  const filtroAtivo = Array.from(document.querySelectorAll('#filtro-categoria .category-button.active')).find(btn => btn.textContent !== 'Todas');
+  const categoriaFiltrada = filtroAtivo ? filtroAtivo.textContent : null;
+  const produtosFiltrados = (!categoriaFiltrada ? produtos : produtos.filter(p => p.categoria === categoriaFiltrada))
+    .filter(p => isProdutoAtivo(p))
+    .filter(p => (p.nome || '').toLowerCase().includes(filtro));
+
+  datalist.innerHTML = produtosFiltrados.map(p => {
+    const qtdAtual = getQuantidadeProduto(p);
+    const precoFinal = p.precoVenda || 0;
+    const categoria = p.categoria ? ` (${p.categoria})` : '';
+    const descricaoLabel = p.descricao ? ` — ${truncarTexto(p.descricao, 40)}` : '';
+    return `<option value="${p.nome}">${categoria} (${qtdAtual} un.) — R$ ${precoFinal.toFixed(2)}${descricaoLabel}</option>`;
+  }).join('');
 }
 
 // --- EVENTOS DE TECLADO ---

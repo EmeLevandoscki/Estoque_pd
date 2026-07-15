@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gerenciador de Estoque & Pedidos</title>
+  <title>Estoque - Gerenciador de Estoque & Pedidos</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -23,10 +23,10 @@
     </div>
 
     <div class="tabs">
-      <button class="tab-btn active" onclick="showTab('estoque', this)">Estoque</button>
-      <button class="tab-btn" onclick="showTab('pedidos', this)">Pedidos</button>
-      <button class="tab-btn" onclick="showTab('clientes', this)">Clientes</button>
-      <button class="tab-btn" onclick="showTab('historico', this)">Histórico</button>
+      <a class="tab-btn active" href="index.html">Estoque</a>
+      <a class="tab-btn" href="pedidos.html">Pedidos</a>
+      <a class="tab-btn" href="clientes.html">Clientes</a>
+      <a class="tab-btn" href="historico.html">Histórico</a>
     </div>
 
     <!-- PAINEL DE ESTOQUE ATUALIZADO -->
@@ -125,149 +125,6 @@
         </table>
       </div>
     </div>
-
-    <!-- PAINEL DE CLIENTES ATUALIZADO -->
-    <div id="clientes" class="panel">
-      <h2 id="cliente-title">Novo cliente</h2>
-      <input type="hidden" id="edit-cliente-id">
-      <div class="form-row">
-        <div class="form-group" style="max-width:400px">
-          <label>Nome do Cliente</label>
-          <input id="c-nome" placeholder="Ex: Maria Silva" onkeydown="handleEnterKey(event, 'salvar-cliente')">
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="primary" onclick="salvarCliente()" id="salvar-cliente">Salvar cliente</button>
-        <button onclick="cancelarEdicaoCliente()">Cancelar</button>
-      </div>
-
-      <!-- ✅ RESUMO FINANCEIRO -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0 1rem; font-size: 14px;">
-        <h3 style="color: #0f172a; margin-top: 0; margin-bottom: 1rem;"> Resumo Financeiro</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-weight: 500;">
-          <div style="background: #e0f2fe; padding: 12px; border-radius: 6px; text-align: center;">
-            <div style="color: #0369a1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Total a receber</div>
-            <div id="resumo-receber" style="font-size: 18px; color: #ef4444; margin-top: 4px;">R$ 0,00</div>
-          </div>
-          <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; text-align: center;">
-            <div style="color: #059669; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Valor em estoque</div>
-            <div id="resumo-estoque" style="font-size: 18px; color: #10b981; margin-top: 4px;">R$ 0,00</div>
-          </div>
-          <div style="background: #fef3f2; padding: 12px; border-radius: 6px; text-align: center;">
-            <div style="color: #dc2626; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Total gasto (custo)</div>
-            <div id="resumo-custo" style="font-size: 18px; color: #ef4444; margin-top: 4px;">R$ 0,00</div>
-          </div>
-          <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; text-align: center;">
-            <div style="color: #374151; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Lucro estimado</div>
-            <div id="resumo-lucro" style="font-size: 18px; color: #059669; margin-top: 4px;">R$ 0,00</div>
-          </div>
-        </div>
-      </div>
-
-      <h3>Clientes cadastrados</h3>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Saldo devedor</th>
-              <th>Abater pagamento</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-clientes"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- PAINEL DE PEDIDOS (inalterado) -->
-    <div id="pedidos" class="panel">
-      <h2>Novo pedido</h2>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Cliente</label>
-          <select id="ped-cliente"><option value="">Selecione...</option></select>
-        </div>
-        <div class="form-group">
-          <label>Forma de pagamento</label>
-          <select id="ped-forma">
-            <option value="dinheiro">Dinheiro</option>
-            <option value="pix">PIX</option>
-            <option value="cartao">Cartão</option>
-            <option value="debito">Débito</option>
-            <option value="credito">Crédito</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Parcelas</label>
-          <select id="ped-parcelas">
-            <option value="1">1x (à vista)</option>
-            <option value="2">2x</option>
-            <option value="3">3x</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Valor pago agora (R$)</label>
-          <input type="number" id="ped-pago" value="0" step="0.01" min="0" onkeydown="handleEnterKey(event, 'ped-produto')">
-        </div>
-      </div>
-      <hr class="sep">
-      <h3>Filtrar produtos por categoria</h3>
-      <div class="category-filter" id="filtro-categoria">
-        <button class="category-button active" onclick="filtrarCategoria('todos')">Todas</button>
-      </div>
-      <h3>Adicionar produtos ao pedido</h3>
-      <div class="item-linha">
-        <div class="form-group">
-          <label>Produto / Combo do estoque</label>
-          <select id="ped-produto"><option value="">Selecione...</option></select>
-        </div>
-        <div class="form-group">
-          <label>Qtd</label>
-          <input type="number" id="ped-qty" value="1" min="1" onkeydown="handleEnterKey(event, 'adicionar-item')">
-        </div>
-        <button class="primary" onclick="adicionarItemPedido()" id="adicionar-item">Adicionar</button>
-      </div>
-      <small style="display:block; color:#64748b; margin-top:8px;">Se escolher um combo do estoque, ele monta o pedido com os produtos já cadastrados do combo, como se fosse um carinho montado na hora.</small>
-      <div id="itens-lista" style="margin-top:12px; min-height:32px"></div>
-      <div class="resumo-pedido" id="resumo-pedido" style="display:none">
-        <div id="resumo-itens"></div>
-        <div class="total" id="resumo-total"></div>
-      </div>
-      <div class="btn-row" style="margin-top:24px">
-        <button class="success" onclick="fazerPedido()">Registrar pedido</button>
-        <button onclick="limparPedido()">Limpar tudo</button>
-      </div>
-    </div>
-
-    <!-- PAINEL DE HISTÓRICO (inalterado) -->
-    <div id="historico" class="panel">
-      <h2>Histórico de pedidos</h2>
-      <div style="margin-bottom:1.25rem">
-        <select id="filtro-cliente" onchange="renderHistorico()" style="max-width:280px;">
-          <option value="">Todos os clientes</option>
-        </select>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Cliente</th>
-              <th>Produtos</th>
-              <th>Total</th>
-              <th>Pago</th>
-              <th>Parcelas</th>
-              <th>Forma</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-historico"></tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -284,6 +141,7 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
