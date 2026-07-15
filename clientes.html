@@ -31,38 +31,49 @@
 
     <!-- PAINEL DE CLIENTES ATUALIZADO -->
     <div id="clientes" class="panel active">
-      <h2 id="cliente-title">Novo cliente</h2>
-      <input type="hidden" id="edit-cliente-id">
-      <div class="form-row">
-        <div class="form-group" style="max-width:400px">
-          <label>Nome do Cliente</label>
-          <input id="c-nome" placeholder="Ex: Maria Silva" onkeydown="handleEnterKey(event, 'salvar-cliente')">
+      <button type="button" class="sheet-trigger" onclick="novoClienteMobile()">+ Novo cliente</button>
+
+      <div class="form-sheet" id="sheet-cliente">
+        <div class="sheet-header">
+          <h2 id="cliente-title">Novo cliente</h2>
+          <button type="button" class="sheet-close" onclick="cancelarEdicaoCliente()" aria-label="Fechar">&times;</button>
         </div>
-      </div>
-      <div class="btn-row">
-        <button class="primary" onclick="salvarCliente()" id="salvar-cliente">Salvar cliente</button>
-        <button onclick="cancelarEdicaoCliente()">Cancelar</button>
+        <div class="sheet-body">
+          <input type="hidden" id="edit-cliente-id">
+          <div class="form-row">
+            <div class="form-group" style="max-width:400px">
+              <label>Nome do Cliente</label>
+              <input id="c-nome" placeholder="Ex: Maria Silva" onkeydown="handleEnterKey(event, 'salvar-cliente')">
+            </div>
+          </div>
+        </div>
+        <div class="sheet-footer">
+          <div class="btn-row">
+            <button class="primary" onclick="salvarCliente()" id="salvar-cliente">Salvar cliente</button>
+            <button onclick="cancelarEdicaoCliente()">Cancelar</button>
+          </div>
+        </div>
       </div>
 
       <!-- RESUMO FINANCEIRO -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0 1rem; font-size: 14px;">
-        <h3 style="color: #0f172a; margin-top: 0; margin-bottom: 1rem;"> Resumo Financeiro</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-weight: 500;">
-          <div style="background: #e0f2fe; padding: 12px; border-radius: 6px; text-align: center;">
-            <div style="color: #0369a1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Total a receber</div>
-            <div id="resumo-receber" style="font-size: 18px; color: #ef4444; margin-top: 4px;">R$ 0,00</div>
+      <div class="resumo-financeiro" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0 1rem; font-size: 14px;">
+        <h3 style="margin-top: 0;">Resumo Financeiro</h3>
+        <div class="resumo-grid">
+          <div class="resumo-tile" style="background: #e0f2fe;">
+            <div class="resumo-tile-label" style="color: #0369a1;">Total a receber</div>
+            <div id="resumo-receber" class="resumo-tile-valor" style="color: #ef4444;">R$ 0,00</div>
           </div>
-          <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; text-align: center;">
-            <div style="color: #059669; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Valor em estoque</div>
-            <div id="resumo-estoque" style="font-size: 18px; color: #10b981; margin-top: 4px;">R$ 0,00</div>
+          <div class="resumo-tile" style="background: #f0fdf4;">
+            <div class="resumo-tile-label" style="color: #059669;">Valor em estoque</div>
+            <div id="resumo-estoque" class="resumo-tile-valor" style="color: #10b981;">R$ 0,00</div>
           </div>
-          <div style="background: #fef3f2; padding: 12px; border-radius: 6px; text-align: center;">
-            <div style="color: #dc2626; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Total gasto (custo)</div>
-            <div id="resumo-custo" style="font-size: 18px; color: #ef4444; margin-top: 4px;">R$ 0,00</div>
+          <div class="resumo-tile" style="background: #fef3f2;">
+            <div class="resumo-tile-label" style="color: #dc2626;">Total gasto (custo)</div>
+            <div id="resumo-custo" class="resumo-tile-valor" style="color: #ef4444;">R$ 0,00</div>
           </div>
-          <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; text-align: center;">
-            <div style="color: #374151; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Lucro estimado</div>
-            <div id="resumo-lucro" style="font-size: 18px; color: #059669; margin-top: 4px;">R$ 0,00</div>
+          <div class="resumo-tile" style="background: #f3f4f6;">
+            <div class="resumo-tile-label" style="color: #374151;">Lucro estimado</div>
+            <div id="resumo-lucro" class="resumo-tile-valor" style="color: #059669;">R$ 0,00</div>
           </div>
         </div>
       </div>
@@ -82,13 +93,31 @@
         </table>
       </div>
     </div>
+
+    <nav class="bottom-nav">
+      <a class="bottom-nav-item" href="index.html">
+        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+        Estoque
+      </a>
+      <a class="bottom-nav-item" href="pedidos.html">
+        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg>
+        Pedidos
+      </a>
+      <a class="bottom-nav-item active" href="clientes.html">
+        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.4.5 4 2.6 4 5.8"/></svg>
+        Clientes
+      </a>
+      <a class="bottom-nav-item" href="historico.html">
+        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        Histórico
+      </a>
+    </nav>
   </div>
 
   <div class="toast" id="toast"></div>
 
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

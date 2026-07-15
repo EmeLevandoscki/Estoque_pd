@@ -9,7 +9,6 @@
 
 firebase.initializeApp(firebaseConfig);
 const dbFS = firebase.firestore();
-const authFB = firebase.auth();
 
 let produtos = [], clientes = [], pedidos = [], pagamentos = [];
 const SENHA_CORRETA = "181022";
@@ -246,26 +245,17 @@ function verificarSenha() {
   }
 }
 
-async function desbloquearApp() {
+function desbloquearApp() {
   document.getElementById("tela-bloqueio").style.display = "none";
   document.getElementById("app-container").style.display = "block";
   document.getElementById("campo-senha").value = "";
-  try {
-    if (!authFB.currentUser) {
-      await authFB.signInAnonymously();
-    }
-    ativarSincronizacaoEmTempoReal();
-  } catch (error) {
-    console.error("Erro ao autenticar:", error);
-    toast("Erro ao conectar com o banco de dados. Tente novamente.");
-  }
+  ativarSincronizacaoEmTempoReal();
 }
 
 function bloquearSistema() {
   document.getElementById("app-container").style.display = "none";
   document.getElementById("tela-bloqueio").style.display = "flex";
   sessionStorage.removeItem('sistemaDesbloqueado');
-  authFB.signOut();
   inicializarSeguranca();
 }
 
@@ -336,6 +326,28 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+// --- PAINÉIS EM TELA CHEIA (MOBILE) ---
+
+function abrirSheetMobile(id) {
+  document.getElementById(id)?.classList.add('sheet-open');
+  document.body.classList.add('sheet-lock');
+}
+
+function fecharSheetMobile(id) {
+  document.getElementById(id)?.classList.remove('sheet-open');
+  document.body.classList.remove('sheet-lock');
+}
+
+function novoProdutoMobile() {
+  cancelarEdicaoProduto();
+  abrirSheetMobile('sheet-produto');
+}
+
+function novoClienteMobile() {
+  cancelarEdicaoCliente();
+  abrirSheetMobile('sheet-cliente');
 }
 
 // --- ESTOQUE ---
@@ -497,22 +509,22 @@ function getHtmlProdutoEstoque(p) {
   return `
     <tr>
       <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}${tipoBadge}${comboResumo}</td>
-      <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
-      <td>
+      <td data-label="Categoria"><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
+      <td data-label="Quantidade">
         <div class="qty-ctrl">
           <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
           <span class="qty-num">${qtdFinal}</span>
           <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
         </div>
       </td>
-      <td style="font-weight: 500; font-size: 13px;">
+      <td data-label="Preço" style="font-weight: 500; font-size: 13px;">
         ${precoCustoExibido}<br>
         ${precoVendaExibido} ${promoTag}
       </td>
-      <td class="desc-cell" onclick="mostrarDescricao('${descricaoEsc}')">
+      <td class="desc-cell" data-label="Descrição" onclick="mostrarDescricao('${descricaoEsc}')">
         ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
       </td>
-      <td class="actions">
+      <td class="actions" data-label="Ações">
         <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
         <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
       </td>
@@ -615,6 +627,7 @@ function editarProduto(id) {
   document.getElementById("estoque-title").textContent = "Editar produto";
   document.getElementById("p-nome").focus();
   window.scrollTo({ top: 0, behavior: "smooth" });
+  abrirSheetMobile('sheet-produto');
 }
 
 function cancelarEdicaoProduto() {
@@ -632,6 +645,7 @@ function cancelarEdicaoProduto() {
   renderizarItensComboTemp();
   document.getElementById("estoque-title").textContent = "Novo produto";
   document.getElementById('categoria-sugestoes').style.display = 'none';
+  fecharSheetMobile('sheet-produto');
 }
 
 async function deletarProduto(id) {
@@ -781,17 +795,17 @@ function renderClientes() {
             `}
           </div>
         </td>
-        <td class="${saldoClass}">R$ ${saldo.toFixed(2)}</td>
-        <td>
+        <td class="${saldoClass}" data-label="Saldo devedor">R$ ${saldo.toFixed(2)}</td>
+        <td data-label="Abater pagamento">
           ${!saldoZero(saldo) ? `
             <div class="pay-row">
-              <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$">
+              <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$" inputmode="decimal">
               <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
               <button class="sm primary" onclick="quitarTudo('${c.id}', ${saldo})">Quitar tudo</button>
             </div>
           ` : '<span class="badge badge-ok">Sem dívida</span>'}
         </td>
-        <td class="actions">
+        <td class="actions" data-label="Ações">
           <button class="sm" onclick="editarCliente('${c.id}')">Editar</button>
           <button class="sm danger" onclick="deletarCliente('${c.id}')">Excluir</button>
         </td>
@@ -1092,12 +1106,14 @@ function editarCliente(id) {
   document.getElementById("cliente-title").textContent = "Editar cliente";
   document.getElementById("c-nome").focus();
   window.scrollTo({ top: 0, behavior: "smooth" });
+  abrirSheetMobile('sheet-cliente');
 }
 
 function cancelarEdicaoCliente() {
   document.getElementById("edit-cliente-id").value = "";
   document.getElementById("c-nome").value = "";
   document.getElementById("cliente-title").textContent = "Novo cliente";
+  fecharSheetMobile('sheet-cliente');
 }
 
 async function deletarCliente(id) {
@@ -1410,12 +1426,12 @@ function renderHistorico() {
     // Cabeçalho do pedido
     html += `
       <tr class="pedido-header" onclick="togglePedidoHistorico('pedido-det-${ped.id}')">
-        <td style="color: #64748b;">${data}</td>
-        <td style="font-weight: 600; color: #0f172a;">${c ? c.nome : "—"}</td>
-        <td style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
-        <td>R$ ${totalRealmentePago.toFixed(2)}</td>
-        <td style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
-        <td><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span> <span class="arrow-hist">▼</span></td>
+        <td data-label="Data" style="color: #64748b;">${data}</td>
+        <td data-label="Cliente" style="font-weight: 600; color: #0f172a;">${c ? c.nome : "—"}</td>
+        <td data-label="Total" style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
+        <td data-label="Pago">R$ ${totalRealmentePago.toFixed(2)}</td>
+        <td data-label="Forma" style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
+        <td data-label="Status"><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span> <span class="arrow-hist">▼</span></td>
       </tr>
     `;
 
@@ -1553,22 +1569,22 @@ function filtrarEstoque() {
     return `
       <tr>
         <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}</td>
-        <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
-        <td>
+        <td data-label="Categoria"><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
+        <td data-label="Quantidade">
           <div class="qty-ctrl">
             <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
             <span class="qty-num">${qtdFinal}</span>
             <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
           </div>
         </td>
-        <td style="font-weight: 500; font-size: 13px;">
+        <td data-label="Preço" style="font-weight: 500; font-size: 13px;">
           ${precoCustoExibido}<br>
           ${precoVendaExibido} ${promoTag}
         </td>
-        <td class="desc-cell" onclick="mostrarDescricao('${descricaoEsc}')">
+        <td class="desc-cell" data-label="Descrição" onclick="mostrarDescricao('${descricaoEsc}')">
           ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
         </td>
-        <td class="actions">
+        <td class="actions" data-label="Ações">
           <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
           <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
         </td>
@@ -1614,22 +1630,22 @@ function filtrarCategoriaEstoque(categoria) {
     return `
       <tr>
         <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}</td>
-        <td><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
-        <td>
+        <td data-label="Categoria"><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
+        <td data-label="Quantidade">
           <div class="qty-ctrl">
             <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
             <span class="qty-num">${qtdFinal}</span>
             <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
           </div>
         </td>
-        <td style="font-weight: 500; font-size: 13px;">
+        <td data-label="Preço" style="font-weight: 500; font-size: 13px;">
           ${precoCustoExibido}<br>
           ${precoVendaExibido} ${promoTag}
         </td>
-        <td class="desc-cell" onclick="mostrarDescricao('${descricaoEsc}')">
+        <td class="desc-cell" data-label="Descrição" onclick="mostrarDescricao('${descricaoEsc}')">
           ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
         </td>
-        <td class="actions">
+        <td class="actions" data-label="Ações">
           <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
           <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
         </td>
