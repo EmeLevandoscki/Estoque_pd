@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Estoque - Gerenciador de Estoque & Pedidos</title>
+  <title>Início - Gerenciador de Estoque & Pedidos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,130 +18,75 @@
   </div>
 
   <div class="app" id="app-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-      <h1>Gerenciador de Estoque & Pedidos</h1>
+    <div style="display:flex; justify-content:flex-end; margin-bottom: 0.5rem;">
       <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
     </div>
 
     <div class="tabs">
-      <a class="tab-btn active" href="index.html">Estoque</a>
+      <a class="tab-btn active" href="index.html">Início</a>
+      <a class="tab-btn" href="estoque.html">Estoque</a>
       <a class="tab-btn" href="pedidos.html">Pedidos</a>
       <a class="tab-btn" href="clientes.html">Clientes</a>
-      <a class="tab-btn" href="historico.html">Histórico</a>
     </div>
 
-    <!-- PAINEL DE ESTOQUE ATUALIZADO -->
-    <div id="estoque" class="panel active">
-      <button type="button" class="sheet-trigger" onclick="novoProdutoMobile()">+ Novo produto</button>
+    <!-- PAINEL DE INÍCIO: LANÇADOR DE AÇÕES RÁPIDAS -->
+    <div id="inicio" class="panel active">
+      <div class="action-launcher">
+        <div class="greeting">Olá</div>
+        <div class="greeting-sub">O que você quer fazer?</div>
 
-      <div class="form-sheet" id="sheet-produto">
-        <div class="sheet-header">
-          <h2 id="estoque-title">Novo produto</h2>
-          <button type="button" class="sheet-close" onclick="cancelarEdicaoProduto()" aria-label="Fechar">&times;</button>
-        </div>
-        <div class="sheet-body">
-          <input type="hidden" id="edit-produto-id">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Nome</label>
-              <input id="p-nome" placeholder="Ex: Batom Vermelho" onkeydown="handleEnterKey(event, 'p-cat')">
-            </div>
-            <div class="form-group">
-              <label>Categoria</label>
-              <input id="p-cat" placeholder="Ex: Maquiagem" onkeydown="handleCategoryKey(event)" autocomplete="off">
-              <div class="category-suggestions" id="categoria-sugestoes"></div>
-              <div class="category-buttons" id="botoes-rapidos-categoria"> </div>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Quantidade</label><input type="number" id="p-qty" value="0" min="0" inputmode="numeric" onkeydown="handleEnterKey(event, 'p-custo')"></div>
-            <div class="form-group"><label>Preço de custo (R$)</label><input type="number" id="p-custo" value="0" step="0.01" min="0" inputmode="decimal" onkeydown="handleEnterKey(event, 'p-preco')"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Preço de venda (R$)</label><input type="number" id="p-preco" value="0" step="0.01" min="0" inputmode="decimal" onkeydown="handleEnterKey(event, 'p-promocao')"></div>
-            <div class="form-group">
-              <label>Em promoção?</label>
-              <select id="p-promocao" onkeydown="handleEnterKey(event, 'p-descricao')">
-                <option value="">Não</option>
-                <option value="sim">Sim</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Tipo de produto</label>
-              <select id="p-tipo" onchange="toggleCampoCombo()">
-                <option value="simples">Produto simples</option>
-                <option value="combo">Combo</option>
-              </select>
-            </div>
-            <div class="form-group" id="grupo-combo" style="display:none;">
-              <label>Itens do combo <span class="help-icon" title="1. Cadastre produtos SIMPLES antes&#10;2. Digite o nome do produto&#10;3. Defina a quantidade&#10;4. Clique Adicionar">?</span></label>
-              <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-end; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 160px;">
-                  <label style="font-size: 13px; display: block; margin-bottom: 4px;">Produto</label>
-                  <input type="text" id="p-combo-produto" placeholder="Digite ou selecione um produto..." list="lista-produtos-combo" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 16px;" oninput="atualizarListaProdutosCombo()">
-                  <datalist id="lista-produtos-combo"></datalist>
-                </div>
-                <div style="width: 90px;">
-                  <label style="font-size: 13px; display: block; margin-bottom: 4px;">Qtd</label>
-                  <input type="number" id="p-combo-qty" value="1" min="1" inputmode="numeric" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 16px;">
-                </div>
-                <button type="button" class="primary" onclick="adicionarItemAoCombo()" style="padding: 8px 16px; min-height: 44px;">Adicionar</button>
-              </div>
-              <div id="lista-itens-combo" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
-                <small style="display: block; color: #64748b; margin-bottom: 8px; font-weight: 500;">Itens adicionados:</small>
-                <div id="itens-combo-tags" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
-              </div>
-              <input type="hidden" id="p-itens-combo" value="">
-              <small style="display:block;color:#64748b;margin-top:4px;">Selecione produtos do estoque e adicione ao combo</small>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Descrição do produto</label>
-            <textarea id="p-descricao" placeholder="Ex: Batom hidratante, cor vermelho vinho, durabilidade de 8h" rows="3" onkeydown="handleEnterKey(event, 'salvar-produto')"></textarea>
-          </div>
-        </div>
-        <div class="sheet-footer">
-          <div class="btn-row">
-            <button class="primary" onclick="salvarProduto()" id="salvar-produto">Salvar produto</button>
-            <button onclick="cancelarEdicaoProduto()">Cancelar</button>
-          </div>
-        </div>
-      </div>
+        <button type="button" class="hero-banner" onclick="window.location.href='pedidos.html'">
+          <span class="hero-banner-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2l1 6 5-3 5 3 1-6"/><path d="M4 8h16v13H4z"/><path d="M12 13v5M9.5 15.5h5"/></svg>
+          </span>
+          <span class="hero-banner-text">
+            <span class="hero-banner-title">Novo pedido</span>
+            <span class="hero-banner-sub">Registrar uma venda</span>
+          </span>
+        </button>
 
-      <div class="sticky-search">
-        <div class="form-group" style="margin: 0;">
-          <label>Buscar produto</label>
-          <input type="text" id="busca-produto" placeholder="Digite o nome do produto..." oninput="filtrarEstoque()">
+        <div class="action-grid">
+          <button type="button" class="action-tile" onclick="window.location.href='clientes.html'">
+            <span class="action-tile-icon" style="background:var(--sage-soft); color:var(--sage);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8h20M2 8v10a2 2 0 002 2h16a2 2 0 002-2V8M2 8V6a2 2 0 012-2h16a2 2 0 012 2v2"/><path d="M15 14h3"/></svg>
+            </span>
+            <span class="action-tile-title">Registrar pagamento</span>
+            <span class="action-tile-sub">Cliente pagou</span>
+          </button>
+
+          <button type="button" class="action-tile" onclick="window.location.href='estoque.html?novo=produto'">
+            <span class="action-tile-icon" style="background:var(--amber-soft); color:var(--amber);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+            </span>
+            <span class="action-tile-title">Novo produto</span>
+            <span class="action-tile-sub">Adicionar ao estoque</span>
+          </button>
+
+          <button type="button" class="action-tile" onclick="window.location.href='clientes.html?buscar=1'">
+            <span class="action-tile-icon" style="background:var(--forest-soft); color:var(--forest);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6-6"/></svg>
+            </span>
+            <span class="action-tile-title">Buscar cliente</span>
+            <span class="action-tile-sub">Ver quem deve</span>
+          </button>
+
+          <button type="button" class="action-tile" onclick="window.location.href='clientes.html#resumo-financeiro'">
+            <span class="action-tile-icon" style="background:var(--brick-soft); color:var(--brick);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/><path d="M15 7h4v4"/></svg>
+            </span>
+            <span class="action-tile-title">Ver relatório</span>
+            <span class="action-tile-sub">Últimos 30 dias</span>
+          </button>
         </div>
-      </div>
-
-      <h3>Filtrar por categoria</h3>
-      <div class="category-filter" id="filtro-categoria-estoque">
-        <button class="category-button active" onclick="filtrarCategoriaEstoque('todos')">Todas</button>
-      </div>
-
-      <h3>Produtos cadastrados</h3>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th>Categoria</th>
-              <th>Quantidade</th>
-              <th>Preço</th>
-              <th>Descrição</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-estoque"></tbody>
-        </table>
       </div>
     </div>
 
     <nav class="bottom-nav">
       <a class="bottom-nav-item active" href="index.html">
+        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+        Início
+      </a>
+      <a class="bottom-nav-item" href="estoque.html">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
         Estoque
       </a>
@@ -152,24 +98,10 @@
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.4.5 4 2.6 4 5.8"/></svg>
         Clientes
       </a>
-      <a class="bottom-nav-item" href="historico.html">
-        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        Histórico
-      </a>
     </nav>
   </div>
 
   <div class="toast" id="toast"></div>
-  <div class="modal-overlay" id="modal-categoria">
-    <div class="modal-content">
-      <h3>Adicionar nova categoria</h3>
-      <input type="text" id="nova-categoria-input" placeholder="Ex: Cuidados Capilares" autofocus>
-      <div class="modal-buttons">
-        <button onclick="fecharModalCategoria()">Cancelar</button>
-        <button class="primary" onclick="adicionarCategoria()">Adicionar</button>
-      </div>
-    </div>
-  </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>

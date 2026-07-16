@@ -13,7 +13,6 @@ const dbFS = firebase.firestore();
 let produtos = [], clientes = [], pedidos = [], pagamentos = [];
 const SENHA_CORRETA = "181022";
 const NOMES_FIXOS = ["Emelly Levandoscki", "Taina Pinheiro Pomatti"];
-let timersFechamento = {};
 
 // Função para arredondar valores monetários com precisão
 function arredondarMoeda(valor) {
@@ -250,6 +249,22 @@ function desbloquearApp() {
   document.getElementById("app-container").style.display = "block";
   document.getElementById("campo-senha").value = "";
   ativarSincronizacaoEmTempoReal();
+  aplicarAcaoRapida();
+}
+
+function aplicarAcaoRapida() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('novo') === 'produto' && document.getElementById('sheet-produto')) {
+    novoProdutoMobile();
+  }
+  const campoBusca = document.getElementById('busca-cliente');
+  if (params.get('buscar') === '1' && campoBusca) {
+    campoBusca.focus();
+  }
+  if (location.hash) {
+    const alvo = document.querySelector(location.hash);
+    if (alvo) setTimeout(() => alvo.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  }
 }
 
 function bloquearSistema() {
@@ -363,8 +378,21 @@ function isProdutoAtivo(produto) {
 
 function getStatusTag(produto) {
   return isProdutoAtivo(produto)
-    ? '<span class="badge-promo" style="background:#dcfce7;color:#166534;margin-left:6px;">ativo</span>'
-    : '<span class="badge-promo" style="background:#fee2e2;color:#b91c1c;margin-left:6px;">inativo</span>';
+    ? '<span class="tag ativo">ativo</span>'
+    : '<span class="tag inativo">inativo</span>';
+}
+
+function getIniciais(nome) {
+  const partes = (nome || '').trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return '?';
+  if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
+  return (partes[0][0] + partes[1][0]).toUpperCase();
+}
+
+function getPillEstoque(qtd) {
+  if (qtd <= 0) return { classe: 'esgotado', label: 'Esgotado' };
+  if (qtd <= 5) return { classe: 'baixo', label: `${qtd} un.` };
+  return { classe: 'ok', label: `${qtd} un.` };
 }
 
 function toggleCampoCombo() {
@@ -495,45 +523,48 @@ function formatarFormaPagamento(forma) {
 
 function getHtmlProdutoEstoque(p) {
   const qtdFinal = getQuantidadeProduto(p);
-  const custoFinal = p.precoCusto || 0;
   const precoFinal = p.precoVenda || 0;
   const emPromocao = p.emPromocao === 'sim';
   const descricao = p.descricao || '';
   const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + '...' : descricao;
-  const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
-  const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
-  const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
+  const promoTag = emPromocao ? '<span class="tag promo">promo</span>' : '';
   const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
   const statusTag = getStatusTag(p);
-  const tipoBadge = p.tipo === 'combo'
-    ? '<span class="badge-promo" style="background:#e0f2fe;color:#075985;margin-left:6px;">combo</span>'
-    : '';
+  const tipoBadge = p.tipo === 'combo' ? '<span class="tag combo">combo</span>' : '';
   const comboResumo = p.tipo === 'combo' && Array.isArray(p.itensCombo) && p.itensCombo.length
-    ? `<div style="font-size:11px;color:#64748b;margin-top:4px;">Combo: ${formatarItensCombo(p.itensCombo)}</div>`
+    ? `<div class="product-desc">Combo: ${formatarItensCombo(p.itensCombo)}</div>`
     : '';
+  const pill = getPillEstoque(qtdFinal);
+  const thumbHtml = p.foto
+    ? `<img src="${p.foto}" alt="">`
+    : getIniciais(p.nome);
   return `
-    <tr>
-      <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}${tipoBadge}${comboResumo}</td>
-      <td data-label="Categoria"><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
-      <td data-label="Quantidade">
+    <div class="product-card">
+      <div class="product-card-main">
+        <div class="product-thumb">${thumbHtml}</div>
+        <div class="product-info">
+          <div class="product-nome">${p.nome || 'Sem nome'} ${statusTag}${promoTag}${tipoBadge}</div>
+          <div class="product-sub">
+            <span>${p.categoria || 'Geral'}</span>
+            <span class="stock-pill ${pill.classe}">${pill.label}</span>
+          </div>
+          ${comboResumo}
+          ${descricaoResumo ? `<div class="product-desc" onclick="mostrarDescricao('${descricaoEsc}')">${descricaoResumo}</div>` : ''}
+        </div>
+        <div class="product-preco money"><span class="cur">R$</span>${precoFinal.toFixed(2)}</div>
+      </div>
+      <div class="card-actions-row">
         <div class="qty-ctrl">
           <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
           <span class="qty-num">${qtdFinal}</span>
           <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
         </div>
-      </td>
-      <td data-label="Preço" style="font-weight: 500; font-size: 13px;">
-        ${precoCustoExibido}<br>
-        ${precoVendaExibido} ${promoTag}
-      </td>
-      <td class="desc-cell" data-label="Descrição" onclick="mostrarDescricao('${descricaoEsc}')">
-        ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
-      </td>
-      <td class="actions" data-label="Ações">
-        <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-        <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-      </td>
-    </tr>
+        <div class="card-actions-buttons">
+          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
+          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -541,7 +572,7 @@ function renderEstoque() {
   const tbody = document.getElementById("tbody-estoque");
   if (tbody) {
     if (!produtos.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum produto cadastrado.</td></tr>';
+      tbody.innerHTML = '<div class="empty">Nenhum produto cadastrado.</div>';
     } else {
       const produtosOrdenados = [...produtos].sort((a, b) => {
         const aZero = getQuantidadeProduto(a) === 0;
@@ -553,6 +584,11 @@ function renderEstoque() {
 
       tbody.innerHTML = produtosOrdenados.map(getHtmlProdutoEstoque).join("");
     }
+  }
+  const subtitulo = document.getElementById("estoque-subtitulo");
+  if (subtitulo) {
+    const baixoOuEsgotado = produtos.filter(p => getQuantidadeProduto(p) <= 5).length;
+    subtitulo.textContent = `${produtos.length} produto${produtos.length === 1 ? '' : 's'}${baixoOuEsgotado > 0 ? ` · ${baixoOuEsgotado} com estoque baixo` : ''}`;
   }
   atualizarFiltroCategoriaEstoque();
   atualizarResumoFinanceiro();
@@ -566,6 +602,65 @@ async function ajustarQty(id, delta) {
   await dbFS.collection("produtos").doc(id).update({ quantidade: novaQty, ativo: novaQty > 0 });
 }
 
+// --- FOTO DO PRODUTO ---
+
+let fotoProdutoTemp = null;
+
+function selecionarFotoProduto(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    toast('Selecione um arquivo de imagem.');
+    return;
+  }
+
+  const leitor = new FileReader();
+  leitor.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 640;
+      let largura = img.width;
+      let altura = img.height;
+      if (largura > MAX || altura > MAX) {
+        if (largura > altura) {
+          altura = Math.round(altura * MAX / largura);
+          largura = MAX;
+        } else {
+          largura = Math.round(largura * MAX / altura);
+          altura = MAX;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = largura;
+      canvas.height = altura;
+      canvas.getContext('2d').drawImage(img, 0, 0, largura, altura);
+      fotoProdutoTemp = canvas.toDataURL('image/jpeg', 0.7);
+      atualizarPreviewFotoProduto();
+    };
+    img.src = e.target.result;
+  };
+  leitor.readAsDataURL(file);
+}
+
+function atualizarPreviewFotoProduto() {
+  const preview = document.getElementById('p-foto-preview');
+  const removerBtn = document.getElementById('p-foto-remover-btn');
+  if (!preview) return;
+  if (fotoProdutoTemp) {
+    preview.innerHTML = `<img src="${fotoProdutoTemp}" alt="Foto do produto">`;
+    if (removerBtn) removerBtn.style.display = '';
+  } else {
+    preview.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>`;
+    if (removerBtn) removerBtn.style.display = 'none';
+  }
+}
+
+function removerFotoProduto() {
+  fotoProdutoTemp = null;
+  atualizarPreviewFotoProduto();
+}
+
 async function salvarProduto() {
   const id = document.getElementById("edit-produto-id").value;
   const nome = document.getElementById("p-nome").value.trim();
@@ -577,6 +672,7 @@ async function salvarProduto() {
   const tipo = document.getElementById("p-tipo")?.value || "simples";
   const itensCombo = tipo === 'combo' ? itemsComboTemp : [];
   const descricao = document.getElementById("p-descricao").value.trim() || null;
+  const foto = fotoProdutoTemp || null;
 
   if (!nome || !cat) {
     toast("Preencha nome e categoria.");
@@ -594,7 +690,7 @@ async function salvarProduto() {
       nome, categoria: cat, quantidade: qty, ativo: produtoAtivo,
       precoCusto: custo, precoVenda: preco,
       emPromocao: promocao, descricao: descricao,
-      tipo, itensCombo
+      tipo, itensCombo, foto
     });
     toast("Produto atualizado.");
   } else {
@@ -602,7 +698,7 @@ async function salvarProduto() {
       nome, categoria: cat, quantidade: qty, ativo: produtoAtivo,
       precoCusto: custo, precoVenda: preco,
       emPromocao: promocao, descricao: descricao,
-      tipo, itensCombo,
+      tipo, itensCombo, foto,
       data: new Date().toISOString()
     });
     toast("Produto adicionado.");
@@ -627,6 +723,8 @@ function editarProduto(id) {
     quantidade: item.quantidade
   })) : [];
   document.getElementById("p-descricao").value = p.descricao || "";
+  fotoProdutoTemp = p.foto || null;
+  atualizarPreviewFotoProduto();
   toggleCampoCombo();
   renderizarItensComboTemp();
   document.getElementById("estoque-title").textContent = "Editar produto";
@@ -646,6 +744,8 @@ function cancelarEdicaoProduto() {
   document.getElementById("p-tipo").value = "simples";
   itemsComboTemp = [];
   document.getElementById("p-descricao").value = "";
+  fotoProdutoTemp = null;
+  atualizarPreviewFotoProduto();
   toggleCampoCombo();
   renderizarItensComboTemp();
   document.getElementById("estoque-title").textContent = "Novo produto";
@@ -661,23 +761,87 @@ async function deletarProduto(id) {
 
 // --- CLIENTES ---
 
-function renderClientes() {
-  const tbody = document.getElementById("tbody-clientes");
+function calcularDetalheCliente(c) {
+  const totalPedidos = pedidos
+    .filter(p => p.clienteId === c.id)
+    .reduce((s, p) => s + p.valorTotal, 0);
+  const totalPagoPedidos = pedidos
+    .filter(p => p.clienteId === c.id)
+    .reduce((s, p) => s + p.valorPago, 0);
+  const totalAbatimentos = pagamentos
+    .filter(pg => pg.clienteId === c.id)
+    .reduce((s, pg) => s + pg.valor, 0);
+  const totalPago = totalPagoPedidos + totalAbatimentos;
+  const saldo = arredondarMoeda(Math.max(0, totalPedidos - totalPago));
+
+  // Pedidos do cliente (do mais recente para o mais antigo)
+  const pedidosDoCliente = pedidos
+    .filter(p => p.clienteId === c.id)
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  // DISTRIBUIÇÃO CORRETA DE ABATIMENTOS:
+  // Ordena pedidos do mais antigo para o mais novo e distribui os abatimentos
+  // sequencialmente — cada pedido recebe o que sobra do anterior
+  const pedidosOrdenados = [...pedidosDoCliente].sort((a, b) => new Date(a.data) - new Date(b.data));
+  let abatimentosRestantes = totalAbatimentos;
+  const saldoPorPedido = {};
+  const pagoPorPedido = {};
+  pedidosOrdenados.forEach(p => {
+    const jaPagoNoPedido = p.valorPago || 0;
+    const restantePedido = Math.max(0, p.valorTotal - jaPagoNoPedido);
+    const abatimentoParaEste = Math.min(restantePedido, abatimentosRestantes);
+    abatimentosRestantes = Math.max(0, abatimentosRestantes - abatimentoParaEste);
+    saldoPorPedido[p.id] = arredondarMoeda(Math.max(0, p.valorTotal - jaPagoNoPedido - abatimentoParaEste));
+    pagoPorPedido[p.id] = arredondarMoeda(jaPagoNoPedido + abatimentoParaEste);
+  });
+
+  const qtdPedidos = pedidosDoCliente.length;
+  const pedidosPendentes = pedidosDoCliente.filter(p => arredondarMoeda(saldoPorPedido[p.id] || 0) > 0.01);
+  const idsPedidosPendentes = new Set(pedidosPendentes.map(p => p.id));
+
+  // Replica a mesma distribuição (pedidos mais antigos primeiro), mas pagamento a pagamento
+  // em ordem cronológica, só para descobrir quais pedidos cada pagamento ajudou a quitar.
+  // Não altera saldoPorPedido/pagoPorPedido — é só para decidir o que aparece na lista.
+  const restanteSimulado = {};
+  pedidosOrdenados.forEach(p => {
+    restanteSimulado[p.id] = Math.max(0, p.valorTotal - (p.valorPago || 0));
+  });
+  let ponteiroPedido = 0;
+  const pedidosTocadosPorPagamento = {};
+  const pagamentosCronologicos = pagamentos
+    .filter(pg => pg.clienteId === c.id)
+    .sort((a, b) => new Date(a.data) - new Date(b.data));
+  pagamentosCronologicos.forEach(pg => {
+    let valorRestante = pg.valor;
+    const tocados = new Set();
+    while (valorRestante > 0.01 && ponteiroPedido < pedidosOrdenados.length) {
+      const pedidoAtual = pedidosOrdenados[ponteiroPedido];
+      if (restanteSimulado[pedidoAtual.id] <= 0.01) { ponteiroPedido++; continue; }
+      const aplicar = Math.min(restanteSimulado[pedidoAtual.id], valorRestante);
+      restanteSimulado[pedidoAtual.id] -= aplicar;
+      valorRestante -= aplicar;
+      tocados.add(pedidoAtual.id);
+    }
+    pedidosTocadosPorPagamento[pg.id] = tocados;
+  });
+
+  const pagamentosDoCliente = pagamentosCronologicos
+    .filter(pg => {
+      const tocados = pedidosTocadosPorPagamento[pg.id];
+      return tocados && [...tocados].some(id => idsPedidosPendentes.has(id));
+    })
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  return { saldo, totalPago, qtdPedidos, pedidosDoCliente, pedidosPendentes, saldoPorPedido, pagoPorPedido, pagamentosDoCliente };
+}
+
+function getClientesOrdenados() {
   const clientesFixos = [];
   const clientesComPendencia = [];
   const clientesSemPendencia = [];
 
   clientes.forEach(cliente => {
-    const totalPedidos = pedidos
-      .filter(p => p.clienteId === cliente.id)
-      .reduce((s, p) => s + p.valorTotal, 0);
-    const totalPago = pedidos
-      .filter(p => p.clienteId === cliente.id)
-      .reduce((s, p) => s + p.valorPago, 0) +
-      pagamentos.filter(pg => pg.clienteId === cliente.id)
-        .reduce((s, pg) => s + pg.valor, 0);
-    const saldo = arredondarMoeda(Math.max(0, totalPedidos - totalPago));
-
+    const { saldo } = calcularDetalheCliente(cliente);
     if (NOMES_FIXOS.includes(cliente.nome)) {
       clientesFixos.push({ ...cliente, saldo });
     } else if (saldo > 0.01) {
@@ -693,193 +857,40 @@ function renderClientes() {
   const ordenadosPendencia = clientesComPendencia.sort((a, b) => a.nome.localeCompare(b.nome));
   const ordenadosSemPendencia = clientesSemPendencia.sort((a, b) => a.nome.localeCompare(b.nome));
 
-  const clientesOrdenados = [...ordenadosFixos, ...ordenadosPendencia, ...ordenadosSemPendencia];
+  return [...ordenadosFixos, ...ordenadosPendencia, ...ordenadosSemPendencia];
+}
+
+function getHtmlClienteCard(c) {
+  const det = calcularDetalheCliente(c);
+  const subtitulo = saldoZero(det.saldo)
+    ? `${det.qtdPedidos} pedido${det.qtdPedidos === 1 ? '' : 's'} · sem dívida`
+    : `${det.qtdPedidos} pedido${det.qtdPedidos === 1 ? '' : 's'} · devendo <span class="money"><span class="cur">R$</span>${det.saldo.toFixed(2)}</span>`;
+  return `
+    <button type="button" class="client-card" onclick="abrirDetalheCliente('${c.id}')">
+      <div class="client-avatar">${getIniciais(c.nome)}</div>
+      <div class="client-info">
+        <div class="client-nome">${c.nome}</div>
+        <div class="client-sub">${subtitulo}</div>
+      </div>
+      <svg class="client-card-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+    </button>
+  `;
+}
+
+function renderClientes() {
+  const tbody = document.getElementById("tbody-clientes");
+  const clientesOrdenados = getClientesOrdenados();
 
   if (tbody) {
-    if (!clientesOrdenados.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum cliente cadastrado.</td></tr>';
+    const busca = document.getElementById('busca-cliente')?.value.toLowerCase().trim() || '';
+    const clientesFiltrados = busca
+      ? clientesOrdenados.filter(c => c.nome.toLowerCase().includes(busca))
+      : clientesOrdenados;
+
+    if (!clientesFiltrados.length) {
+      tbody.innerHTML = `<div class="empty">${busca ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado.'}</div>`;
     } else {
-      tbody.innerHTML = clientesOrdenados.map(c => {
-    const totalPedidos = pedidos
-      .filter(p => p.clienteId === c.id)
-      .reduce((s, p) => s + p.valorTotal, 0);
-    const totalPagoPedidos = pedidos
-      .filter(p => p.clienteId === c.id)
-      .reduce((s, p) => s + p.valorPago, 0);
-    const totalAbatimentos = pagamentos
-      .filter(pg => pg.clienteId === c.id)
-      .reduce((s, pg) => s + pg.valor, 0);
-    const totalPago = totalPagoPedidos + totalAbatimentos;
-    const saldo = arredondarMoeda(Math.max(0, totalPedidos - totalPago));
-    const saldoClass = saldoZero(saldo) ? "saldo-zero" : "saldo-pos";
-
-    // Pedidos do cliente (do mais recente para o mais antigo)
-    const pedidosDoCliente = pedidos
-      .filter(p => p.clienteId === c.id)
-      .sort((a, b) => new Date(b.data) - new Date(a.data));
-
-    // DISTRIBUIÇÃO CORRETA DE ABATIMENTOS:
-    // Ordena pedidos do mais antigo para o mais novo e distribui os abatimentos
-    // sequencialmente — cada pedido recebe o que sobra do anterior
-    const pedidosOrdenados = [...pedidosDoCliente].sort((a, b) => new Date(a.data) - new Date(b.data));
-    let abatimentosRestantes = totalAbatimentos;
-    const saldoPorPedido = {};
-    const pagoPorPedido = {};
-    pedidosOrdenados.forEach(p => {
-      const jaPagoNoPedido = p.valorPago || 0;
-      const restantePedido = Math.max(0, p.valorTotal - jaPagoNoPedido);
-      const abatimentoParaEste = Math.min(restantePedido, abatimentosRestantes);
-      abatimentosRestantes = Math.max(0, abatimentosRestantes - abatimentoParaEste);
-      saldoPorPedido[p.id] = arredondarMoeda(Math.max(0, p.valorTotal - jaPagoNoPedido - abatimentoParaEste));
-      pagoPorPedido[p.id] = arredondarMoeda(jaPagoNoPedido + abatimentoParaEste);
-    });
-
-    const qtdPedidos = pedidosDoCliente.length;
-    const pedidosPendentes = pedidosDoCliente.filter(p => arredondarMoeda(saldoPorPedido[p.id] || 0) > 0.01);
-    const idsPedidosPendentes = new Set(pedidosPendentes.map(p => p.id));
-
-    // Replica a mesma distribuição (pedidos mais antigos primeiro), mas pagamento a pagamento
-    // em ordem cronológica, só para descobrir quais pedidos cada pagamento ajudou a quitar.
-    // Não altera saldoPorPedido/pagoPorPedido — é só para decidir o que aparece na lista.
-    const restanteSimulado = {};
-    pedidosOrdenados.forEach(p => {
-      restanteSimulado[p.id] = Math.max(0, p.valorTotal - (p.valorPago || 0));
-    });
-    let ponteiroPedido = 0;
-    const pedidosTocadosPorPagamento = {};
-    const pagamentosCronologicos = pagamentos
-      .filter(pg => pg.clienteId === c.id)
-      .sort((a, b) => new Date(a.data) - new Date(b.data));
-    pagamentosCronologicos.forEach(pg => {
-      let valorRestante = pg.valor;
-      const tocados = new Set();
-      while (valorRestante > 0.01 && ponteiroPedido < pedidosOrdenados.length) {
-        const pedidoAtual = pedidosOrdenados[ponteiroPedido];
-        if (restanteSimulado[pedidoAtual.id] <= 0.01) { ponteiroPedido++; continue; }
-        const aplicar = Math.min(restanteSimulado[pedidoAtual.id], valorRestante);
-        restanteSimulado[pedidoAtual.id] -= aplicar;
-        valorRestante -= aplicar;
-        tocados.add(pedidoAtual.id);
-      }
-      pedidosTocadosPorPagamento[pg.id] = tocados;
-    });
-
-    const pagamentosDoCliente = pagamentosCronologicos
-      .filter(pg => {
-        const tocados = pedidosTocadosPorPagamento[pg.id];
-        return tocados && [...tocados].some(id => idsPedidosPendentes.has(id));
-      })
-      .sort((a, b) => new Date(b.data) - new Date(a.data));
-
-    return `
-      <tr class="client-row" id="linha-cliente-${c.id}">
-        <td style="font-weight: 600; color: #0f172a;">
-          <div class="client-name" id="trigger-${c.id}" onclick="toggleHistorico('${c.id}')">
-            ${c.nome} ${pedidosPendentes.length > 0 ? '<span class="badge badge-pend" style="font-size:11px; margin-left:6px;">' + pedidosPendentes.length + ' pendente' + (pedidosPendentes.length > 1 ? 's' : '') + '</span>' : ''} <span class="arrow">▼</span>
-          </div>
-          <div class="client-history" id="historico-${c.id}">
-            <div class="ch-resumo-nome">${c.nome} · ${qtdPedidos} pedido${qtdPedidos === 1 ? '' : 's'}</div>
-            <div class="ch-resumo-cards">
-              <div class="ch-resumo-card devendo">
-                <div class="ch-resumo-label">Devendo</div>
-                <div class="ch-resumo-valor">R$ ${saldo.toFixed(2)}</div>
-              </div>
-              <div class="ch-resumo-card pago">
-                <div class="ch-resumo-label">Já pago</div>
-                <div class="ch-resumo-valor">R$ ${totalPago.toFixed(2)}</div>
-              </div>
-            </div>
-
-            <div class="ch-section">
-              <div class="ch-section-title">Pedidos</div>
-              ${pedidosPendentes.length > 0 ? pedidosPendentes.map(p => {
-                const saldoRestante = saldoPorPedido[p.id] || 0;
-                const pagoNoPedido = pagoPorPedido[p.id] || 0;
-                const statusKey = saldoZero(saldoRestante) ? 'pago' : (pagoNoPedido > 0.01 ? 'parcial' : 'aberto');
-                const statusLabel = statusKey === 'pago' ? 'Pago' : (statusKey === 'parcial' ? 'Parcial' : 'Em aberto');
-                const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
-                const qtdItensPedido = (p.itens || []).reduce((s, i) => s + (i.quantidade || 0), 0);
-                const pct = p.valorTotal > 0 ? Math.min(100, Math.round((pagoNoPedido / p.valorTotal) * 100)) : 0;
-                const cardId = `pedido-card-${c.id}-${p.id}`;
-                const itensHtml = (p.itens && p.itens.length) ? p.itens.map(i => `
-                  <div class="ch-item">
-                    <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
-                    <span class="ch-item-qty">x${i.quantidade || 0}</span>
-                    <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
-                    ${getHtmlDescricaoItem(i.descricao)}
-                  </div>
-                `).join('') : '<div class="ch-empty">Sem itens.</div>';
-
-                return `
-                  <div class="pedido-card status-${statusKey}" id="${cardId}" onclick="togglePedidoCard('${cardId}')">
-                    <div class="pedido-card-top">
-                      <span class="pedido-card-data">${data}</span>
-                      <span class="status-badge status-${statusKey}">${statusLabel}</span>
-                    </div>
-                    <div class="pedido-card-sub">
-                      <span>${qtdItensPedido} ${qtdItensPedido === 1 ? 'item' : 'itens'} · ${formatarFormaPagamento(p.formaPagamento)}</span>
-                      <span class="pedido-card-arrow">▾</span>
-                    </div>
-                    ${statusKey === 'parcial' ? `
-                      <div class="pedido-progress">
-                        <div class="pedido-progress-bar"><div class="pedido-progress-fill" style="width:${pct}%"></div></div>
-                        <div class="pedido-progress-label">Pago R$ ${pagoNoPedido.toFixed(2)} de R$ ${p.valorTotal.toFixed(2)} (${pct}%)</div>
-                      </div>
-                    ` : ''}
-                    ${saldoRestante > 0.01 ? `
-                      <div class="pedido-card-footer">
-                        <span>Falta pagar</span>
-                        <strong>R$ ${saldoRestante.toFixed(2)}</strong>
-                      </div>
-                    ` : ''}
-                    <div class="pedido-card-itens" onclick="event.stopPropagation()">
-                      ${itensHtml}
-                    </div>
-                  </div>
-                `;
-              }).join('') : '<div class="ch-empty">Nenhum pedido em aberto.</div>'}
-            </div>
-
-            <div class="ch-section">
-              <div class="ch-section-title">Pagamentos recebidos</div>
-              ${pagamentosDoCliente.length > 0 ? `
-                <div class="pagamentos-lista">
-                  ${pagamentosDoCliente.map(pg => {
-                    const pgData = pg.data ? new Date(pg.data).toLocaleDateString("pt-BR") : "—";
-                    const forma = pg.formaPagamento === 'dinheiro' ? 'Dinheiro' : 'PIX';
-                    return `
-                      <div class="pagamento-linha">
-                        <span class="pagamento-dot"></span>
-                        <div class="pagamento-info">
-                          <div class="pagamento-data">${pgData}</div>
-                          <div class="pagamento-forma">${forma}</div>
-                        </div>
-                        <div class="pagamento-valor">R$ ${pg.valor.toFixed(2)}</div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              ` : '<div class="ch-empty">Nenhum pagamento registrado.</div>'}
-            </div>
-          </div>
-        </td>
-        <td class="${saldoClass}" data-label="Saldo devedor">R$ ${saldo.toFixed(2)}</td>
-        <td data-label="Abater pagamento">
-          ${!saldoZero(saldo) ? `
-            <div class="pay-row">
-              <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$" inputmode="decimal">
-              <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
-              <button class="sm primary" onclick="quitarTudo('${c.id}', ${saldo})">Quitar tudo</button>
-            </div>
-          ` : '<span class="badge badge-ok">Sem dívida</span>'}
-        </td>
-        <td class="actions" data-label="Ações">
-          <button class="sm" onclick="editarCliente('${c.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarCliente('${c.id}')">Excluir</button>
-        </td>
-      </tr>
-    `;
-      }).join("");
+      tbody.innerHTML = clientesFiltrados.map(getHtmlClienteCard).join("");
     }
   }
 
@@ -890,34 +901,162 @@ function renderClientes() {
       clientesOrdenados.map(c => `<option value="${c.id}"${c.id === cur ? " selected" : ""}>${c.nome}</option>`).join("");
   }
 
+  const subtituloPagina = document.getElementById("clientes-subtitulo");
+  if (subtituloPagina) {
+    subtituloPagina.textContent = `${clientesOrdenados.length} cliente${clientesOrdenados.length === 1 ? '' : 's'} ativo${clientesOrdenados.length === 1 ? '' : 's'}`;
+  }
+
   atualizarResumoFinanceiro();
+  renderDetalheCliente();
 }
 
-function toggleHistorico(clienteId) {
-  const historyDiv = document.getElementById(`historico-${clienteId}`);
-  const nameDiv = document.getElementById(`trigger-${clienteId}`);
-  if (timersFechamento[clienteId]) {
-    clearTimeout(timersFechamento[clienteId]);
-    delete timersFechamento[clienteId];
-  }
-  if (historyDiv.style.display === 'block') {
-    historyDiv.style.display = 'none';
-    nameDiv.classList.remove('open');
-  } else {
-    historyDiv.style.display = 'block';
-    nameDiv.classList.add('open');
-    timersFechamento[clienteId] = setTimeout(() => {
-      historyDiv.style.display = 'none';
-      nameDiv.classList.remove('open');
-      delete timersFechamento[clienteId];
-    }, 10000);
-  }
+function filtrarClientes() {
+  renderClientes();
+}
+
+function getHtmlOrderCard(c, p, det) {
+  const saldoRestante = det.saldoPorPedido[p.id] || 0;
+  const pagoNoPedido = det.pagoPorPedido[p.id] || 0;
+  const statusKey = saldoZero(saldoRestante) ? 'pago' : (pagoNoPedido > 0.01 ? 'parcial' : 'aberto');
+  const statusLabel = statusKey === 'pago' ? 'Pago' : (statusKey === 'parcial' ? 'Parcial' : 'Em aberto');
+  const data = p.data ? new Date(p.data).toLocaleDateString("pt-BR") : "—";
+  const qtdItensPedido = (p.itens || []).reduce((s, i) => s + (i.quantidade || 0), 0);
+  const pct = p.valorTotal > 0 ? Math.min(100, Math.round((pagoNoPedido / p.valorTotal) * 100)) : 0;
+  const cardId = `order-card-${c.id}-${p.id}`;
+  const itensHtml = (p.itens && p.itens.length) ? p.itens.map(i => `
+    <div class="ch-item">
+      <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
+      <span class="ch-item-qty">x${i.quantidade || 0}</span>
+      <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
+      ${getHtmlDescricaoItem(i.descricao)}
+    </div>
+  `).join('') : '<div class="ch-empty">Sem itens.</div>';
+
+  return `
+    <div class="order-card status-${statusKey}" id="${cardId}" onclick="togglePedidoCard('${cardId}')">
+      <div class="order-card-top">
+        <span class="order-card-data">${data}</span>
+        <span class="status-badge status-${statusKey}">${statusLabel}</span>
+      </div>
+      <div class="order-card-sub">
+        <span>${qtdItensPedido} ${qtdItensPedido === 1 ? 'item' : 'itens'} · ${formatarFormaPagamento(p.formaPagamento)}</span>
+        <span class="order-card-arrow">▾</span>
+      </div>
+      ${statusKey === 'parcial' ? `
+        <div class="order-progress">
+          <div class="order-progress-bar"><div class="order-progress-fill" style="width:${pct}%"></div></div>
+          <div class="order-progress-label">Pago R$ ${pagoNoPedido.toFixed(2)} de R$ ${p.valorTotal.toFixed(2)} (${pct}%)</div>
+        </div>
+      ` : ''}
+      ${saldoRestante > 0.01 ? `
+        <div class="order-card-footer">
+          <span>Falta pagar</span>
+          <strong class="money"><span class="cur">R$</span>${saldoRestante.toFixed(2)}</strong>
+        </div>
+      ` : ''}
+      <div class="order-card-itens" onclick="event.stopPropagation()">
+        ${itensHtml}
+      </div>
+    </div>
+  `;
+}
+
+let clienteDetalheAtual = null;
+
+function abrirDetalheCliente(id) {
+  clienteDetalheAtual = id;
+  renderDetalheCliente();
+  document.getElementById('cliente-detalhe')?.classList.add('open');
+  document.body.classList.add('sheet-lock');
+}
+
+function fecharDetalheCliente() {
+  clienteDetalheAtual = null;
+  document.getElementById('cliente-detalhe')?.classList.remove('open');
+  document.body.classList.remove('sheet-lock');
+}
+
+function renderDetalheCliente() {
+  if (!clienteDetalheAtual) return;
+  const c = clientes.find(cl => cl.id === clienteDetalheAtual);
+  const body = document.getElementById('cliente-detalhe-body');
+  if (!c) { fecharDetalheCliente(); return; }
+  if (!body) return;
+
+  const nomeEl = document.getElementById('cliente-detalhe-nome');
+  const subEl = document.getElementById('cliente-detalhe-sub');
+  const det = calcularDetalheCliente(c);
+  const { saldo, totalPago, qtdPedidos, pedidosPendentes, pagamentosDoCliente } = det;
+
+  if (nomeEl) nomeEl.textContent = c.nome;
+  if (subEl) subEl.textContent = `${qtdPedidos} pedido${qtdPedidos === 1 ? '' : 's'}`;
+
+  const pedidosHtml = pedidosPendentes.length > 0
+    ? pedidosPendentes.map(p => getHtmlOrderCard(c, p, det)).join('')
+    : '<div class="ch-empty">Nenhum pedido em aberto.</div>';
+
+  const pagamentosHtml = pagamentosDoCliente.length > 0 ? `
+    <div class="pagamentos-lista">
+      ${pagamentosDoCliente.map(pg => {
+        const pgData = pg.data ? new Date(pg.data).toLocaleDateString("pt-BR") : "—";
+        const forma = pg.formaPagamento === 'dinheiro' ? 'Dinheiro' : 'PIX';
+        return `
+          <div class="pagamento-linha">
+            <span class="pagamento-dot"></span>
+            <div class="pagamento-info">
+              <div class="pagamento-data">${pgData}</div>
+              <div class="pagamento-forma">${forma}</div>
+            </div>
+            <div class="pagamento-valor money"><span class="cur">R$</span>${pg.valor.toFixed(2)}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  ` : '<div class="ch-empty">Nenhum pagamento registrado.</div>';
+
+  body.innerHTML = `
+    <div class="balance-grid">
+      <div class="balance-cell brick">
+        <div class="balance-label">Devendo</div>
+        <div class="balance-valor money"><span class="cur">R$</span>${saldo.toFixed(2)}</div>
+      </div>
+      <div class="balance-cell sage">
+        <div class="balance-label">Já pago</div>
+        <div class="balance-valor money"><span class="cur">R$</span>${totalPago.toFixed(2)}</div>
+      </div>
+    </div>
+
+    ${!saldoZero(saldo) ? `
+      <div class="section-block">
+        <div class="pay-row">
+          <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$" inputmode="decimal">
+          <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
+          <button class="sm primary" onclick="quitarTudo('${c.id}', ${saldo})">Quitar tudo</button>
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="section-block">
+      <div class="section-title">Pedidos</div>
+      ${pedidosHtml}
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">Pagamentos recebidos</div>
+      ${pagamentosHtml}
+    </div>
+
+    <div class="card-actions-buttons">
+      <button class="sm" onclick="editarCliente('${c.id}')">Editar cliente</button>
+      <button class="sm danger" onclick="deletarCliente('${c.id}')">Excluir cliente</button>
+    </div>
+  `;
 }
 
 function togglePedidoCard(cardId) {
   const card = document.getElementById(cardId);
   if (!card) return;
-  const itensDiv = card.querySelector('.pedido-card-itens');
+  const itensDiv = card.querySelector('.order-card-itens');
   const abrir = !card.classList.contains('open');
   card.classList.toggle('open', abrir);
   if (itensDiv) itensDiv.style.display = abrir ? 'block' : 'none';
@@ -1196,6 +1335,7 @@ function cancelarEdicaoCliente() {
 async function deletarCliente(id) {
   if (!confirm("Excluir este cliente?")) return;
   await dbFS.collection("clientes").doc(id).delete();
+  if (clienteDetalheAtual === id) fecharDetalheCliente();
   toast("Cliente excluído.");
 }
 
@@ -1334,43 +1474,37 @@ function renderItensPedido() {
   const resumoTotal = document.getElementById("resumo-total");
 
   if (!itensPedido.length) {
-    lista.innerHTML = '<span style="font-size:13px;color:#94a3b8">Nenhum produto adicionado ainda.</span>';
+    lista.innerHTML = '<div class="empty" style="padding:1rem 0;">Nenhum produto adicionado ainda.</div>';
     resumo.style.display = "none";
     return;
   }
 
   lista.innerHTML = itensPedido.map(i => {
     const comboExtras = i.tipo === 'combo' && Array.isArray(i.itensCombo) && i.itensCombo.length
-      ? `<div style="margin-top:6px; font-size:12px; color:#64748b; display:flex; flex-wrap:wrap; gap:6px;">
-          ${(i.itensCombo || []).map(item => `
-            <span style="display:inline-flex; align-items:center; gap:4px; background:#f8fafc; padding:4px 7px; border-radius:999px; border:1px solid #e2e8f0;">
-              ${item.nome} x${item.quantidade}
-            </span>
-          `).join('')}
-        </div>`
+      ? `<div class="product-sub">Combo: ${(i.itensCombo || []).map(item => `${item.nome} x${item.quantidade}`).join(', ')}</div>`
       : '';
 
     return `
-      <span class="item-tag">
-        ${i.nome} (x${i.quantidade}) &mdash; R$ ${(i.preco * i.quantidade).toFixed(2)}
-        <button onclick="removerItemPedido('${i.produtoId}')">&#10005;</button>
-        ${getHtmlDescricaoItem(i.descricao)}
-        ${comboExtras}
-      </span>
+      <div class="item-card">
+        <div class="item-card-info">
+          <div class="item-card-nome">${i.nome} <span class="ch-item-cat">x${i.quantidade}</span></div>
+          <div class="item-card-sub money"><span class="cur">R$</span>${(i.preco * i.quantidade).toFixed(2)}</div>
+          ${comboExtras}
+          ${getHtmlDescricaoItem(i.descricao)}
+        </div>
+        <button type="button" class="item-card-remove" onclick="removerItemPedido('${i.produtoId}')" aria-label="Remover item">&#10005;</button>
+      </div>
     `;
   }).join("");
 
   const total = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
   resumoItens.innerHTML = itensPedido.map(i => `
-    <div style="margin-bottom:4px; color:#475569;">
-      <div style="display:flex; justify-content:space-between;">
-        <span>${i.nome} <b>x${i.quantidade}</b></span>
-        <span>R$ ${(i.preco * i.quantidade).toFixed(2)}</span>
-      </div>
-      ${getHtmlDescricaoItem(i.descricao)}
+    <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--ink-2); font-size:13px;">
+      <span>${i.nome} x${i.quantidade}</span>
+      <span class="money"><span class="cur">R$</span>${(i.preco * i.quantidade).toFixed(2)}</span>
     </div>
   `).join("");
-  resumoTotal.innerHTML = `<span>Valor Total:</span> <span style="float:right">R$ ${total.toFixed(2)}</span>`;
+  resumoTotal.innerHTML = `<span style="font-size:13px;color:var(--ink-2);">Total</span> <span class="money"><span class="cur">R$</span>${total.toFixed(2)}</span>`;
   resumo.style.display = "block";
 }
 
@@ -1426,11 +1560,18 @@ async function fazerPedido() {
   limparPedido();
 }
 
+function selecionarFormaPagamento(valor) {
+  document.getElementById('ped-forma').value = valor;
+  document.querySelectorAll('#chips-forma-pagamento .payment-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-valor') === valor);
+  });
+}
+
 function limparPedido() {
   document.getElementById("ped-cliente").value = "";
   document.getElementById("ped-produto").value = "";
   document.getElementById("ped-qty").value = "1";
-  document.getElementById("ped-forma").value = "dinheiro";
+  selecionarFormaPagamento("dinheiro");
   document.getElementById("ped-parcelas").value = "1";
   document.getElementById("ped-pago").value = "0";
   itensPedido = [];
@@ -1445,13 +1586,18 @@ function renderHistorico() {
   const filtro = document.getElementById("filtro-cliente")?.value || "";
   const lista = pedidos;
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido registrado.</td></tr>';
+    tbody.innerHTML = '<div class="empty">Nenhum pedido registrado.</div>';
     return;
   }
 
   // Ordena do mais recente para o mais antigo
   const filtrados = (filtro ? lista.filter(p => p.clienteId === filtro) : lista)
     .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  if (!filtrados.length) {
+    tbody.innerHTML = '<div class="empty">Nenhum pedido encontrado.</div>';
+    return;
+  }
 
   let html = '';
   filtrados.forEach(ped => {
@@ -1499,57 +1645,52 @@ function renderHistorico() {
     const totalRealmentePago = arredondarMoeda(ped.valorPago + abatimentoDestePedido);
     const pago = totalRealmentePago >= (ped.valorTotal - 0.01);
     const data = ped.data ? new Date(ped.data).toLocaleDateString("pt-BR") : "—";
+    const statusKey = pago ? 'pago' : (totalRealmentePago > 0.01 ? 'parcial' : 'aberto');
+    const statusLabel = statusKey === 'pago' ? 'Pago' : (statusKey === 'parcial' ? 'Parcial' : 'Em aberto');
+    const saldoRestante = arredondarMoeda(Math.max(0, ped.valorTotal - totalRealmentePago));
+    const pct = ped.valorTotal > 0 ? Math.min(100, Math.round((totalRealmentePago / ped.valorTotal) * 100)) : 0;
+    const qtdItensPedido = (ped.itens || []).reduce((s, i) => s + (i.quantidade || 0), 0);
+    const cardId = `hist-order-${ped.id}`;
 
-    // Cabeçalho do pedido
+    const itensHtml = (ped.itens && ped.itens.length) ? ped.itens.map(i => `
+      <div class="ch-item">
+        <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
+        <span class="ch-item-qty">x${i.quantidade || 0}</span>
+        <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
+        ${getHtmlDescricaoItem(i.descricao)}
+      </div>
+    `).join('') : '<div class="ch-empty">Sem itens.</div>';
+
     html += `
-      <tr class="pedido-header" onclick="togglePedidoHistorico('pedido-det-${ped.id}')">
-        <td data-label="Data" style="color: #64748b;">${data}</td>
-        <td data-label="Cliente" style="font-weight: 600; color: #0f172a;">${c ? c.nome : "—"}</td>
-        <td data-label="Total" style="font-weight: 600;">R$ ${ped.valorTotal.toFixed(2)}</td>
-        <td data-label="Pago">R$ ${totalRealmentePago.toFixed(2)}</td>
-        <td data-label="Forma" style="text-transform: uppercase; font-size:12px; font-weight:500; color:#64748b;">${ped.formaPagamento}</td>
-        <td data-label="Status"><span class="badge ${pago ? "badge-ok" : "badge-pend"}">${pago ? "Pago" : "Pendente"}</span> <span class="arrow-hist">▼</span></td>
-      </tr>
-    `;
-
-    // Linha detalhada dos itens do pedido
-    const itensHtml = (ped.itens && ped.itens.length) ? ped.itens.map(i => {
-      const subtotal = (i.preco * i.quantidade).toFixed(2);
-      return `
-        <div class="hist-item-detail">
-          <span class="hist-item-nome">${i.nome || 'Produto'} <span class="hist-item-cat">(${i.categoria || 'Geral'})</span></span>
-          <span class="hist-item-qty">x${i.quantidade || 0}</span>
-          <span class="hist-item-preco">R$ ${(i.preco || 0).toFixed(2)} un.</span>
-          <span class="hist-item-sub">R$ ${subtotal}</span>
-          ${getHtmlDescricaoItem(i.descricao)}
+      <div class="order-card status-${statusKey}" id="${cardId}" onclick="togglePedidoCard('${cardId}')">
+        <div class="order-card-top">
+          <span class="order-card-data">${data}</span>
+          <span class="status-badge status-${statusKey}">${statusLabel}</span>
         </div>
-      `;
-    }).join('') : '<div style="color:#94a3b8; padding:6px 0;">—</div>';
-
-    html += `
-      <tr class="pedido-detail" id="pedido-det-${ped.id}" style="display:none;">
-        <td colspan="6" style="padding: 0; border: none;">
-          <div class="pedido-detail-wrap">
-            ${itensHtml}
+        <div class="order-card-sub">
+          <span>${c ? c.nome : '—'} · ${qtdItensPedido} ${qtdItensPedido === 1 ? 'item' : 'itens'} · ${formatarFormaPagamento(ped.formaPagamento)}</span>
+          <span class="order-card-arrow">▾</span>
+        </div>
+        ${statusKey === 'parcial' ? `
+          <div class="order-progress">
+            <div class="order-progress-bar"><div class="order-progress-fill" style="width:${pct}%"></div></div>
+            <div class="order-progress-label">Pago R$ ${totalRealmentePago.toFixed(2)} de R$ ${ped.valorTotal.toFixed(2)} (${pct}%)</div>
           </div>
-        </td>
-      </tr>
+        ` : ''}
+        ${saldoRestante > 0.01 ? `
+          <div class="order-card-footer">
+            <span>Falta pagar</span>
+            <strong class="money"><span class="cur">R$</span>${saldoRestante.toFixed(2)}</strong>
+          </div>
+        ` : ''}
+        <div class="order-card-itens" onclick="event.stopPropagation()">
+          ${itensHtml}
+        </div>
+      </div>
     `;
   });
 
   tbody.innerHTML = html;
-}
-
-function togglePedidoHistorico(rowId) {
-  const row = document.getElementById(rowId);
-  const arrow = row?.previousElementSibling?.querySelector('.arrow-hist');
-  if (row.style.display === 'none' || row.style.display === '') {
-    row.style.display = 'table-row';
-    if (arrow) arrow.style.transform = 'rotate(180deg)';
-  } else {
-    row.style.display = 'none';
-    if (arrow) arrow.style.transform = 'rotate(0deg)';
-  }
 }
 
 // --- SELECTS ---
@@ -1628,46 +1769,10 @@ function filtrarEstoque() {
   const tbody = document.getElementById('tbody-estoque');
   const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(busca));
   if (produtosFiltrados.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<div class="empty">Nenhum produto encontrado.</div>';
     return;
   }
-  tbody.innerHTML = produtosFiltrados.map(p => {
-    const qtdFinal = getQuantidadeProduto(p);
-    const custoFinal = p.precoCusto || 0;
-    const precoFinal = p.precoVenda || 0;
-    const emPromocao = p.emPromocao === "sim";
-    const descricao = p.descricao || "";
-    const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
-    const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
-    const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
-    const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
-    const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
-    const statusTag = getStatusTag(p);
-    return `
-      <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}</td>
-        <td data-label="Categoria"><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
-        <td data-label="Quantidade">
-          <div class="qty-ctrl">
-            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-            <span class="qty-num">${qtdFinal}</span>
-            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-          </div>
-        </td>
-        <td data-label="Preço" style="font-weight: 500; font-size: 13px;">
-          ${precoCustoExibido}<br>
-          ${precoVendaExibido} ${promoTag}
-        </td>
-        <td class="desc-cell" data-label="Descrição" onclick="mostrarDescricao('${descricaoEsc}')">
-          ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
-        </td>
-        <td class="actions" data-label="Ações">
-          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-        </td>
-      </tr>
-    `;
-  }).join("");
+  tbody.innerHTML = produtosFiltrados.map(getHtmlProdutoEstoque).join("");
 }
 
 // --- FILTRO POR CATEGORIA (ESTOQUE) ---
@@ -1689,46 +1794,10 @@ function filtrarCategoriaEstoque(categoria) {
     produtosFiltrados = produtosFiltrados.filter(p => p.nome.toLowerCase().includes(busca));
   }
   if (produtosFiltrados.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<div class="empty">Nenhum produto encontrado.</div>';
     return;
   }
-  tbody.innerHTML = produtosFiltrados.map(p => {
-    const qtdFinal = getQuantidadeProduto(p);
-    const custoFinal = p.precoCusto || 0;
-    const precoFinal = p.precoVenda || 0;
-    const emPromocao = p.emPromocao === "sim";
-    const descricao = p.descricao || "";
-    const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + "..." : descricao;
-    const precoCustoExibido = custoFinal > 0 ? `C: R$ ${custoFinal.toFixed(2)}` : '';
-    const precoVendaExibido = precoFinal > 0 ? `V: R$ ${precoFinal.toFixed(2)}` : '';
-    const promoTag = emPromocao ? '<span class="badge-promo">promo</span>' : '';
-    const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
-    const statusTag = getStatusTag(p);
-    return `
-      <tr>
-        <td style="font-weight: 600; color: #0f172a;">${p.nome || 'Sem nome'}${statusTag}</td>
-        <td data-label="Categoria"><span class="cat-tag">${p.categoria || 'Geral'}</span></td>
-        <td data-label="Quantidade">
-          <div class="qty-ctrl">
-            <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
-            <span class="qty-num">${qtdFinal}</span>
-            <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-          </div>
-        </td>
-        <td data-label="Preço" style="font-weight: 500; font-size: 13px;">
-          ${precoCustoExibido}<br>
-          ${precoVendaExibido} ${promoTag}
-        </td>
-        <td class="desc-cell" data-label="Descrição" onclick="mostrarDescricao('${descricaoEsc}')">
-          ${descricaoResumo || '<span style="color:#cbd5e1">—</span>'}
-        </td>
-        <td class="actions" data-label="Ações">
-          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
-        </td>
-      </tr>
-    `;
-  }).join("");
+  tbody.innerHTML = produtosFiltrados.map(getHtmlProdutoEstoque).join("");
 }
 
 // --- ATUALIZAR FILTRO DE CATEGORIA (ESTOQUE) ---
@@ -1803,10 +1872,10 @@ function atualizarResumoFinanceiro() {
   const elCusto = document.getElementById("resumo-custo");
   const elLucro = document.getElementById("resumo-lucro");
 
-  if (elReceber) elReceber.textContent = `R$ ${arredondarMoeda(totalReceber).toFixed(2)}`;
-  if (elEstoque) elEstoque.textContent = `R$ ${totalEstoque.toFixed(2)}`;
-  if (elCusto) elCusto.textContent = `R$ ${totalCusto.toFixed(2)}`;
-  if (elLucro) elLucro.textContent = `R$ ${lucroEstimado.toFixed(2)}`;
+  if (elReceber) elReceber.innerHTML = `<span class="cur">R$</span>${arredondarMoeda(totalReceber).toFixed(2)}`;
+  if (elEstoque) elEstoque.innerHTML = `<span class="cur">R$</span>${totalEstoque.toFixed(2)}`;
+  if (elCusto) elCusto.innerHTML = `<span class="cur">R$</span>${totalCusto.toFixed(2)}`;
+  if (elLucro) elLucro.innerHTML = `<span class="cur">R$</span>${lucroEstimado.toFixed(2)}`;
 }
 
 // --- LIMPEZA SECRETA (Ctrl + Alt + P) ---

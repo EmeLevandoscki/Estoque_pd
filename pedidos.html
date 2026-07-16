@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pedidos - Gerenciador de Estoque & Pedidos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,38 +18,26 @@
   </div>
 
   <div class="app" id="app-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-      <h1>Gerenciador de Estoque & Pedidos</h1>
+    <div class="page-header">
+      <h1>Pedidos</h1>
       <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
     </div>
+    <p class="page-subtitle">Monte um novo pedido para um cliente</p>
 
     <div class="tabs">
-      <a class="tab-btn" href="index.html">Estoque</a>
+      <a class="tab-btn" href="index.html">Início</a>
+      <a class="tab-btn" href="estoque.html">Estoque</a>
       <a class="tab-btn active" href="pedidos.html">Pedidos</a>
       <a class="tab-btn" href="clientes.html">Clientes</a>
-      <a class="tab-btn" href="historico.html">Histórico</a>
     </div>
 
-    <!-- PAINEL DE PEDIDOS (inalterado) -->
+    <!-- PAINEL DE PEDIDOS -->
     <div id="pedidos" class="panel active">
-      <h2>Novo pedido</h2>
       <div class="form-row">
         <div class="form-group">
           <label>Cliente</label>
           <select id="ped-cliente"><option value="">Selecione...</option></select>
         </div>
-        <div class="form-group">
-          <label>Forma de pagamento</label>
-          <select id="ped-forma">
-            <option value="dinheiro">Dinheiro</option>
-            <option value="pix">PIX</option>
-            <option value="cartao">Cartão</option>
-            <option value="debito">Débito</option>
-            <option value="credito">Crédito</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
         <div class="form-group">
           <label>Parcelas</label>
           <select id="ped-parcelas">
@@ -57,17 +46,35 @@
             <option value="3">3x</option>
           </select>
         </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Forma de pagamento</label>
+        <div class="payment-chips" id="chips-forma-pagamento">
+          <button type="button" class="payment-chip active" data-valor="dinheiro" onclick="selecionarFormaPagamento('dinheiro')">Dinheiro</button>
+          <button type="button" class="payment-chip" data-valor="pix" onclick="selecionarFormaPagamento('pix')">PIX</button>
+          <button type="button" class="payment-chip" data-valor="cartao" onclick="selecionarFormaPagamento('cartao')">Cartão</button>
+          <button type="button" class="payment-chip" data-valor="debito" onclick="selecionarFormaPagamento('debito')">Débito</button>
+          <button type="button" class="payment-chip" data-valor="credito" onclick="selecionarFormaPagamento('credito')">Crédito</button>
+        </div>
+        <input type="hidden" id="ped-forma" value="dinheiro">
+      </div>
+
+      <div class="form-row">
         <div class="form-group">
           <label>Valor pago agora (R$)</label>
           <input type="number" id="ped-pago" value="0" step="0.01" min="0" inputmode="decimal" onkeydown="handleEnterKey(event, 'ped-produto')">
         </div>
       </div>
+
       <hr class="sep">
-      <h3>Filtrar produtos por categoria</h3>
+
+      <h3>Categorias</h3>
       <div class="category-filter" id="filtro-categoria">
         <button class="category-button active" onclick="filtrarCategoria('todos')">Todas</button>
       </div>
-      <h3>Adicionar produtos ao pedido</h3>
+
+      <h3>Adicionar produtos</h3>
       <div class="item-linha">
         <div class="form-group">
           <label>Produto / Combo do estoque</label>
@@ -80,20 +87,26 @@
         </div>
         <button class="primary" onclick="adicionarItemPedido()" id="adicionar-item">Adicionar</button>
       </div>
-      <small style="display:block; color:#64748b; margin-top:8px;">Se escolher um combo do estoque, ele monta o pedido com os produtos já cadastrados do combo, como se fosse um carinho montado na hora.</small>
+      <p class="page-subtitle" style="margin-bottom:16px;">Se escolher um combo do estoque, ele monta o pedido com os produtos já cadastrados do combo.</p>
+
       <div id="itens-lista" style="margin-top:12px; min-height:32px"></div>
       <div class="resumo-pedido" id="resumo-pedido" style="display:none">
         <div id="resumo-itens"></div>
         <div class="total" id="resumo-total"></div>
       </div>
+
       <div class="btn-row" style="margin-top:24px">
-        <button class="success" onclick="fazerPedido()">Registrar pedido</button>
+        <button class="primary" onclick="fazerPedido()">Registrar pedido</button>
         <button onclick="limparPedido()">Limpar tudo</button>
       </div>
     </div>
 
     <nav class="bottom-nav">
       <a class="bottom-nav-item" href="index.html">
+        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+        Início
+      </a>
+      <a class="bottom-nav-item" href="estoque.html">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
         Estoque
       </a>
@@ -104,10 +117,6 @@
       <a class="bottom-nav-item" href="clientes.html">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.4.5 4 2.6 4 5.8"/></svg>
         Clientes
-      </a>
-      <a class="bottom-nav-item" href="historico.html">
-        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        Histórico
       </a>
     </nav>
   </div>

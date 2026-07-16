@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Histórico - Gerenciador de Estoque & Pedidos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,47 +18,39 @@
   </div>
 
   <div class="app" id="app-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-      <h1>Gerenciador de Estoque & Pedidos</h1>
+    <div class="page-header">
+      <h1>Histórico</h1>
       <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
     </div>
+    <p class="page-subtitle">Todos os pedidos registrados</p>
 
     <div class="tabs">
-      <a class="tab-btn" href="index.html">Estoque</a>
+      <a class="tab-btn" href="index.html">Início</a>
+      <a class="tab-btn" href="estoque.html">Estoque</a>
       <a class="tab-btn" href="pedidos.html">Pedidos</a>
       <a class="tab-btn" href="clientes.html">Clientes</a>
-      <a class="tab-btn active" href="historico.html">Histórico</a>
     </div>
 
-    <!-- PAINEL DE HISTÓRICO (inalterado) -->
+    <!-- PAINEL DE HISTÓRICO -->
     <div id="historico" class="panel active">
-      <h2>Histórico de pedidos</h2>
-      <div style="margin-bottom:1.25rem">
-        <select id="filtro-cliente" onchange="renderHistorico()" style="max-width:280px;">
+      <div class="form-group" style="max-width:320px; margin-bottom:20px;">
+        <label>Filtrar por cliente</label>
+        <select id="filtro-cliente" onchange="renderHistorico()">
           <option value="">Todos os clientes</option>
         </select>
       </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Cliente</th>
-              <th>Produtos</th>
-              <th>Total</th>
-              <th>Pago</th>
-              <th>Parcelas</th>
-              <th>Forma</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-historico"></tbody>
-        </table>
-      </div>
+
+      <div id="tbody-historico"></div>
     </div>
+
+    <button type="button" class="fab" onclick="window.location.href='pedidos.html'" aria-label="Novo pedido">+</button>
 
     <nav class="bottom-nav">
       <a class="bottom-nav-item" href="index.html">
+        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+        Início
+      </a>
+      <a class="bottom-nav-item" href="estoque.html">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
         Estoque
       </a>
@@ -68,10 +61,6 @@
       <a class="bottom-nav-item" href="clientes.html">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.4.5 4 2.6 4 5.8"/></svg>
         Clientes
-      </a>
-      <a class="bottom-nav-item active" href="historico.html">
-        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        Histórico
       </a>
     </nav>
   </div>

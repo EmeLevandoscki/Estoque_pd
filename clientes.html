@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clientes - Gerenciador de Estoque & Pedidos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,19 +18,20 @@
   </div>
 
   <div class="app" id="app-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-      <h1>Gerenciador de Estoque & Pedidos</h1>
+    <div class="page-header">
+      <h1>Clientes</h1>
       <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
     </div>
+    <p class="page-subtitle" id="clientes-subtitulo">0 clientes ativos</p>
 
     <div class="tabs">
-      <a class="tab-btn" href="index.html">Estoque</a>
+      <a class="tab-btn" href="index.html">Início</a>
+      <a class="tab-btn" href="estoque.html">Estoque</a>
       <a class="tab-btn" href="pedidos.html">Pedidos</a>
       <a class="tab-btn active" href="clientes.html">Clientes</a>
-      <a class="tab-btn" href="historico.html">Histórico</a>
     </div>
 
-    <!-- PAINEL DE CLIENTES ATUALIZADO -->
+    <!-- PAINEL DE CLIENTES -->
     <div id="clientes" class="panel active">
       <button type="button" class="sheet-trigger" onclick="novoClienteMobile()">+ Novo cliente</button>
 
@@ -56,46 +58,56 @@
       </div>
 
       <!-- RESUMO FINANCEIRO -->
-      <div class="resumo-financeiro" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0 1rem; font-size: 14px;">
-        <h3 style="margin-top: 0;">Resumo Financeiro</h3>
+      <div class="card-block" id="resumo-financeiro" style="padding: 16px; margin-bottom: 20px; scroll-margin-top: 16px;">
+        <h3 style="margin-top: 0;">Resumo financeiro</h3>
         <div class="resumo-grid">
-          <div class="resumo-tile" style="background: #e0f2fe;">
-            <div class="resumo-tile-label" style="color: #0369a1;">Total a receber</div>
-            <div id="resumo-receber" class="resumo-tile-valor" style="color: #ef4444;">R$ 0,00</div>
+          <div class="resumo-tile">
+            <div class="resumo-tile-label">Total a receber</div>
+            <div id="resumo-receber" class="resumo-tile-valor money" style="color: var(--brick);"><span class="cur">R$</span>0,00</div>
           </div>
-          <div class="resumo-tile" style="background: #f0fdf4;">
-            <div class="resumo-tile-label" style="color: #059669;">Valor em estoque</div>
-            <div id="resumo-estoque" class="resumo-tile-valor" style="color: #10b981;">R$ 0,00</div>
+          <div class="resumo-tile">
+            <div class="resumo-tile-label">Valor em estoque</div>
+            <div id="resumo-estoque" class="resumo-tile-valor money" style="color: var(--forest);"><span class="cur">R$</span>0,00</div>
           </div>
-          <div class="resumo-tile" style="background: #fef3f2;">
-            <div class="resumo-tile-label" style="color: #dc2626;">Total gasto (custo)</div>
-            <div id="resumo-custo" class="resumo-tile-valor" style="color: #ef4444;">R$ 0,00</div>
+          <div class="resumo-tile">
+            <div class="resumo-tile-label">Total gasto (custo)</div>
+            <div id="resumo-custo" class="resumo-tile-valor money" style="color: var(--brick);"><span class="cur">R$</span>0,00</div>
           </div>
-          <div class="resumo-tile" style="background: #f3f4f6;">
-            <div class="resumo-tile-label" style="color: #374151;">Lucro estimado</div>
-            <div id="resumo-lucro" class="resumo-tile-valor" style="color: #059669;">R$ 0,00</div>
+          <div class="resumo-tile">
+            <div class="resumo-tile-label">Lucro estimado</div>
+            <div id="resumo-lucro" class="resumo-tile-valor money" style="color: var(--sage);"><span class="cur">R$</span>0,00</div>
           </div>
         </div>
       </div>
 
       <h3>Clientes cadastrados</h3>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Saldo devedor</th>
-              <th>Abater pagamento</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-clientes"></tbody>
-        </table>
+      <div class="search-bar" style="margin-bottom: 12px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="busca-cliente" placeholder="Buscar cliente..." oninput="filtrarClientes()">
       </div>
+      <div class="client-list" id="tbody-clientes"></div>
+    </div>
+
+    <!-- DETALHE DO CLIENTE (tela cheia) -->
+    <div class="detail-sheet" id="cliente-detalhe">
+      <div class="detail-header">
+        <button type="button" class="detail-back" onclick="fecharDetalheCliente()" aria-label="Voltar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="detail-header-title">
+          <div class="detail-nome" id="cliente-detalhe-nome">Cliente</div>
+          <div class="detail-sub" id="cliente-detalhe-sub">0 pedidos</div>
+        </div>
+      </div>
+      <div class="detail-body" id="cliente-detalhe-body"></div>
     </div>
 
     <nav class="bottom-nav">
       <a class="bottom-nav-item" href="index.html">
+        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+        Início
+      </a>
+      <a class="bottom-nav-item" href="estoque.html">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
         Estoque
       </a>
@@ -106,10 +118,6 @@
       <a class="bottom-nav-item active" href="clientes.html">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.4.5 4 2.6 4 5.8"/></svg>
         Clientes
-      </a>
-      <a class="bottom-nav-item" href="historico.html">
-        <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        Histórico
       </a>
     </nav>
   </div>
