@@ -467,12 +467,6 @@ function isProdutoAtivo(produto) {
   return getQuantidadeProduto(produto) > 0;
 }
 
-function getStatusTag(produto) {
-  return isProdutoAtivo(produto)
-    ? '<span class="tag ativo">ativo</span>'
-    : '<span class="tag inativo">inativo</span>';
-}
-
 function getIniciais(nome) {
   const partes = (nome || '').trim().split(/\s+/).filter(Boolean);
   if (!partes.length) return '?';
@@ -616,43 +610,37 @@ function getHtmlProdutoEstoque(p) {
   const qtdFinal = getQuantidadeProduto(p);
   const precoFinal = p.precoVenda || 0;
   const emPromocao = p.emPromocao === 'sim';
-  const descricao = p.descricao || '';
-  const descricaoResumo = descricao.length > 30 ? descricao.substring(0, 30) + '...' : descricao;
-  const promoTag = emPromocao ? '<span class="tag promo">promo</span>' : '';
-  const descricaoEsc = descricao.replace(/'/g, "\\'").replace(/"/g, '"');
-  const statusTag = getStatusTag(p);
-  const tipoBadge = p.tipo === 'combo' ? '<span class="tag combo">combo</span>' : '';
-  const comboResumo = p.tipo === 'combo' && Array.isArray(p.itensCombo) && p.itensCombo.length
-    ? `<div class="product-desc">Combo: ${formatarItensCombo(p.itensCombo)}</div>`
-    : '';
+  const ativo = isProdutoAtivo(p);
   const pill = getPillEstoque(qtdFinal);
-  const thumbHtml = p.foto
+
+  const fotoHtml = p.foto
     ? `<img src="${p.foto}" alt="">`
-    : getIniciais(p.nome);
+    : `<div class="product-photo-placeholder">${getIniciais(p.nome)}</div>`;
+
+  const badgesHtml = (emPromocao || p.tipo === 'combo')
+    ? `<div class="product-photo-badges">
+        ${emPromocao ? '<span class="product-photo-badge promo">Promo</span>' : ''}
+        ${p.tipo === 'combo' ? '<span class="product-photo-badge combo">Combo</span>' : ''}
+      </div>`
+    : '';
+
   return `
-    <div class="product-card">
-      <div class="product-card-main">
-        <div class="product-thumb">${thumbHtml}</div>
-        <div class="product-info">
-          <div class="product-nome">${p.nome || 'Sem nome'} ${statusTag}${promoTag}${tipoBadge}</div>
-          <div class="product-sub">
-            <span>${p.categoria || 'Geral'}</span>
-            <span class="stock-pill ${pill.classe}">${pill.label}</span>
-          </div>
-          ${comboResumo}
-          ${descricaoResumo ? `<div class="product-desc" onclick="mostrarDescricao('${descricaoEsc}')">${descricaoResumo}</div>` : ''}
-        </div>
-        <div class="product-preco money"><span class="cur">R$</span>${precoFinal.toFixed(2)}</div>
+    <div class="product-card" onclick="editarProduto('${p.id}')">
+      <div class="product-photo${ativo ? '' : ' esgotado'}">
+        ${fotoHtml}
+        ${badgesHtml}
+        <button type="button" class="product-photo-remove" onclick="event.stopPropagation(); deletarProduto('${p.id}')" aria-label="Excluir produto">&times;</button>
+        <span class="product-photo-stock ${pill.classe}">${pill.label}</span>
+        ${ativo ? '' : '<div class="product-photo-stamp">Esgotado</div>'}
       </div>
-      <div class="card-actions-row">
-        <div class="qty-ctrl">
+      <div class="product-card-body">
+        <div class="product-nome-grid">${p.nome || 'Sem nome'}</div>
+        <div class="product-cat-grid">${p.categoria || 'Geral'}</div>
+        <div class="product-preco-grid money"><span class="cur">R$</span>${precoFinal.toFixed(2)}</div>
+        <div class="qty-ctrl" onclick="event.stopPropagation()">
           <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
           <span class="qty-num">${qtdFinal}</span>
           <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
-        </div>
-        <div class="card-actions-buttons">
-          <button class="sm" onclick="editarProduto('${p.id}')">Editar</button>
-          <button class="sm danger" onclick="deletarProduto('${p.id}')">Excluir</button>
         </div>
       </div>
     </div>
