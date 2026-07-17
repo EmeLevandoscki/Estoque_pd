@@ -1,5 +1,5 @@
  const firebaseConfig = {
-  apiKey: "AIzaSyCJNQEACZMM7C90J0LcLwPF7LWGvd2xdu0",
+  apiKey: "AIzaSyCJNQeACZMM7C90J0LcLwPF7LWGvd2xdu0",
   authDomain: "meu-estoque-4f39d.firebaseapp.com",
   projectId: "meu-estoque-4f39d",
   storageBucket: "meu-estoque-4f39d.appspot.com",
@@ -9,9 +9,9 @@
 
 firebase.initializeApp(firebaseConfig);
 const dbFS = firebase.firestore();
+const authFB = firebase.auth();
 
 let produtos = [], clientes = [], pedidos = [], pagamentos = [];
-const SENHA_CORRETA = "181022";
 const NOMES_FIXOS = ["Emelly Levandoscki", "Taina Pinheiro Pomatti"];
 
 // Função para arredondar valores monetários com precisão
@@ -225,64 +225,155 @@ function filtrarCategoria(categoria) {
 function inicializarSeguranca() {
   const titulo = document.getElementById("lock-titulo");
   const subtitulo = document.getElementById("lock-subtitulo");
+  const campoEmail = document.getElementById("campo-email");
+  const erroEl = document.getElementById("lock-erro");
+  titulo.textContent = "Bem-vinda de volta";
+  subtitulo.textContent = "Entre com seus dados pra continuar";
+  if (erroEl) erroEl.style.display = "none";
+  validarCamposLogin();
+  campoEmail.focus();
+}
+
+function validarCamposLogin() {
+  const email = document.getElementById("campo-email").value.trim();
+  const senha = document.getElementById("campo-senha").value.trim();
+  const btn = document.getElementById("btn-lock");
+  if (btn) btn.disabled = !(email && senha);
+}
+
+function alternarVisibilidadeSenha() {
   const campo = document.getElementById("campo-senha");
-  titulo.textContent = "Sistema Protegido";
-  subtitulo.textContent = "Insira a senha secreta compartilhada para acessar:";
+  const btn = document.getElementById("btn-toggle-senha");
+  const mostrando = campo.type === "text";
+  campo.type = mostrando ? "password" : "text";
+  btn.innerHTML = mostrando
+    ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>`
+    : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.5 10.5 0 0112 19c-6.5 0-10-7-10-7a17.6 17.6 0 013.94-4.94M9.9 4.24A9.5 9.5 0 0112 4c6.5 0 10 7 10 7a17.6 17.6 0 01-2.16 3.19M6.71 6.71a3 3 0 004.24 4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+  btn.setAttribute("aria-label", mostrando ? "Mostrar senha" : "Ocultar senha");
   campo.focus();
 }
 
-function verificarSenha() {
-  const campo = document.getElementById("campo-senha");
-  const valorDigitado = campo.value.trim();
-  if (valorDigitado === SENHA_CORRETA) {
-    sessionStorage.setItem('sistemaDesbloqueado', 'true');
-    desbloquearApp();
-  } else {
-    alert("Senha incorreta! Acesso negado.");
-    campo.value = "";
-    campo.focus();
+async function verificarSenha() {
+  const campoEmail = document.getElementById("campo-email");
+  const campoSenha = document.getElementById("campo-senha");
+  const btn = document.getElementById("btn-lock");
+  const erroEl = document.getElementById("lock-erro");
+  const card = document.getElementById("lock-card");
+  const email = campoEmail.value.trim();
+  const senha = campoSenha.value.trim();
+  if (!email || !senha) return;
+
+  if (erroEl) erroEl.style.display = "none";
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Entrando...";
+  btn.style.opacity = "0.7";
+  try {
+    await authFB.signInWithEmailAndPassword(email, senha);
+    // authFB.onAuthStateChanged cuida de chamar desbloquearApp()
+  } catch (error) {
+    console.error("Erro de login:", error.code, error.message);
+    if (erroEl) erroEl.style.display = "block";
+    if (card) {
+      card.classList.remove("shake");
+      void card.offsetWidth;
+      card.classList.add("shake");
+    }
+    campoSenha.value = "";
+    campoSenha.focus();
+  } finally {
+    btn.textContent = textoOriginal;
+    btn.style.opacity = "";
+    validarCamposLogin();
   }
 }
+
+let sincronizacaoAtiva = false;
 
 function desbloquearApp() {
   document.getElementById("tela-bloqueio").style.display = "none";
   document.getElementById("app-container").style.display = "block";
+  document.getElementById("campo-email").value = "";
   document.getElementById("campo-senha").value = "";
-  ativarSincronizacaoEmTempoReal();
-  aplicarAcaoRapida();
-}
-
-function aplicarAcaoRapida() {
-  const params = new URLSearchParams(location.search);
-  if (params.get('novo') === 'produto' && document.getElementById('sheet-produto')) {
-    novoProdutoMobile();
+  if (!sincronizacaoAtiva) {
+    sincronizacaoAtiva = true;
+    ativarSincronizacaoEmTempoReal();
   }
-  const campoBusca = document.getElementById('busca-cliente');
-  if (params.get('buscar') === '1' && campoBusca) {
-    campoBusca.focus();
-  }
-  if (location.hash) {
-    const alvo = document.querySelector(location.hash);
-    if (alvo) setTimeout(() => alvo.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  }
+  aplicarTela(location.hash ? location.hash.slice(1) : "inicio");
 }
 
 function bloquearSistema() {
   document.getElementById("app-container").style.display = "none";
   document.getElementById("tela-bloqueio").style.display = "flex";
-  sessionStorage.removeItem('sistemaDesbloqueado');
+  authFB.signOut();
   inicializarSeguranca();
 }
+
+// --- NAVEGAÇÃO ENTRE TELAS (SPA) ---
+
+const TELAS_VALIDAS = ["inicio", "estoque", "pedidos", "clientes", "historico"];
+const TITULOS_TELA = {
+  inicio: "Início",
+  estoque: "Estoque",
+  pedidos: "Pedidos",
+  clientes: "Clientes",
+  historico: "Histórico"
+};
+
+function aplicarTela(tela) {
+  if (!TELAS_VALIDAS.includes(tela)) tela = "inicio";
+
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.getElementById(tela)?.classList.add("active");
+
+  document.querySelectorAll("#tabs-nav .tab-btn").forEach(a => {
+    a.classList.toggle("active", a.dataset.tela === tela);
+  });
+  document.querySelectorAll("#bottom-nav-list .bottom-nav-item").forEach(a => {
+    a.classList.toggle("active", a.dataset.tela === tela);
+  });
+
+  const fab = document.getElementById("fab-acao");
+  if (fab) {
+    if (tela === "estoque") {
+      fab.style.display = "flex";
+      fab.onclick = () => novoProdutoMobile();
+      fab.setAttribute("aria-label", "Novo produto");
+    } else if (tela === "historico") {
+      fab.style.display = "flex";
+      fab.onclick = () => mostrarTela("pedidos");
+      fab.setAttribute("aria-label", "Novo pedido");
+    } else {
+      fab.style.display = "none";
+      fab.onclick = null;
+    }
+  }
+
+  document.title = `${TITULOS_TELA[tela]} - Gerenciador de Estoque & Pedidos`;
+  window.scrollTo({ top: 0 });
+}
+
+function mostrarTela(tela) {
+  aplicarTela(tela);
+  history.pushState({ tela }, "", "#" + tela);
+}
+
+window.addEventListener("popstate", (e) => {
+  const tela = (e.state && e.state.tela) || (location.hash ? location.hash.slice(1) : "inicio");
+  aplicarTela(tela);
+});
 
 // --- INICIALIZAÇÃO ---
 
 window.addEventListener("DOMContentLoaded", function() {
   toggleCampoCombo();
-  if (sessionStorage.getItem('sistemaDesbloqueado') === 'true') {
-    desbloquearApp();
-  } else {
-    inicializarSeguranca();
-  }
+  inicializarSeguranca();
+  authFB.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(() => {});
+  authFB.onAuthStateChanged(user => {
+    if (user) desbloquearApp();
+    const carregando = document.getElementById("tela-carregando");
+    if (carregando) carregando.classList.add("hide");
+  });
 });
 
 // --- SINCRONIZAÇÃO EM TEMPO REAL ---
@@ -606,6 +697,41 @@ async function ajustarQty(id, delta) {
 
 let fotoProdutoTemp = null;
 
+function comprimirImagem(file, maxDimensao, qualidade) {
+  maxDimensao = maxDimensao || 640;
+  qualidade = qualidade || 0.7;
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      reject(new Error('not-an-image'));
+      return;
+    }
+    const leitor = new FileReader();
+    leitor.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let largura = img.width;
+        let altura = img.height;
+        if (largura > maxDimensao || altura > maxDimensao) {
+          if (largura > altura) {
+            altura = Math.round(altura * maxDimensao / largura);
+            largura = maxDimensao;
+          } else {
+            largura = Math.round(largura * maxDimensao / altura);
+            altura = maxDimensao;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = largura;
+        canvas.height = altura;
+        canvas.getContext('2d').drawImage(img, 0, 0, largura, altura);
+        resolve(canvas.toDataURL('image/jpeg', qualidade));
+      };
+      img.src = e.target.result;
+    };
+    leitor.readAsDataURL(file);
+  });
+}
+
 function selecionarFotoProduto(event) {
   const file = event.target.files && event.target.files[0];
   event.target.value = '';
@@ -614,33 +740,27 @@ function selecionarFotoProduto(event) {
     toast('Selecione um arquivo de imagem.');
     return;
   }
+  comprimirImagem(file).then(dataUrl => {
+    fotoProdutoTemp = dataUrl;
+    atualizarPreviewFotoProduto();
+  });
+}
 
-  const leitor = new FileReader();
-  leitor.onload = (e) => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 640;
-      let largura = img.width;
-      let altura = img.height;
-      if (largura > MAX || altura > MAX) {
-        if (largura > altura) {
-          altura = Math.round(altura * MAX / largura);
-          largura = MAX;
-        } else {
-          largura = Math.round(largura * MAX / altura);
-          altura = MAX;
-        }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = largura;
-      canvas.height = altura;
-      canvas.getContext('2d').drawImage(img, 0, 0, largura, altura);
-      fotoProdutoTemp = canvas.toDataURL('image/jpeg', 0.7);
-      atualizarPreviewFotoProduto();
-    };
-    img.src = e.target.result;
-  };
-  leitor.readAsDataURL(file);
+function mostrarComprovante(dataUrl) {
+  if (!dataUrl) return;
+  const modal = document.createElement('div');
+  modal.className = 'modal-desc-overlay';
+  modal.innerHTML = `
+    <div class="modal-desc-content" style="text-align:center;">
+      <h3>Comprovante</h3>
+      <img src="${dataUrl}" alt="Comprovante do PIX" style="max-width:100%; border-radius:12px; margin-bottom:1.5rem;">
+      <button class="primary" onclick="this.parentElement.parentElement.remove()">Fechar</button>
+    </div>
+  `;
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.remove();
+  });
+  document.body.appendChild(modal);
 }
 
 function atualizarPreviewFotoProduto() {
@@ -955,6 +1075,7 @@ function getHtmlOrderCard(c, p, det) {
         </div>
       ` : ''}
       <div class="order-card-itens" onclick="event.stopPropagation()">
+        ${p.comprovante ? `<div class="ch-empty" style="padding-bottom:6px;"><a href="#" onclick="event.preventDefault(); mostrarComprovante('${p.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante do PIX</a></div>` : ''}
         ${itensHtml}
       </div>
     </div>
@@ -1000,12 +1121,15 @@ function renderDetalheCliente() {
       ${pagamentosDoCliente.map(pg => {
         const pgData = pg.data ? new Date(pg.data).toLocaleDateString("pt-BR") : "—";
         const forma = pg.formaPagamento === 'dinheiro' ? 'Dinheiro' : 'PIX';
+        const comprovanteLink = pg.comprovante
+          ? ` · <a href="#" onclick="event.preventDefault(); mostrarComprovante('${pg.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante</a>`
+          : '';
         return `
           <div class="pagamento-linha">
             <span class="pagamento-dot"></span>
             <div class="pagamento-info">
               <div class="pagamento-data">${pgData}</div>
-              <div class="pagamento-forma">${forma}</div>
+              <div class="pagamento-forma">${forma}${comprovanteLink}</div>
             </div>
             <div class="pagamento-valor money"><span class="cur">R$</span>${pg.valor.toFixed(2)}</div>
           </div>
@@ -1073,13 +1197,14 @@ async function abaterPagamento(clienteId, saldo) {
   const resultado = await abrirModalPagamentoPorPedido(clienteId, valor);
   if (!resultado) return; // Cancelado
 
-  const { formaPagamento, pedidoId } = resultado;
+  const { formaPagamento, pedidoId, comprovante } = resultado;
 
   await dbFS.collection("pagamentos").add({
     clienteId,
     pedidoId: pedidoId || null,
     valor,
     formaPagamento: formaPagamento,
+    comprovante: formaPagamento === 'pix' ? (comprovante || null) : null,
     data: new Date().toISOString()
   });
 
@@ -1095,13 +1220,14 @@ async function quitarTudo(clienteId, saldo) {
   const resultado = await abrirModalPagamentoPorPedido(clienteId, saldo);
   if (!resultado) return; // Cancelado
 
-  const { formaPagamento, pedidoId } = resultado;
+  const { formaPagamento, pedidoId, comprovante } = resultado;
 
   await dbFS.collection("pagamentos").add({
     clienteId,
     pedidoId: pedidoId || null,
     valor: saldo,
     formaPagamento: formaPagamento,
+    comprovante: formaPagamento === 'pix' ? (comprovante || null) : null,
     data: new Date().toISOString()
   });
 
@@ -1241,6 +1367,20 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
           </div>
         </div>
 
+        <div id="secao-comprovante-pagto" style="display:none; margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: 600; color: #475569; margin-bottom: 10px; font-size: 14px;">Comprovante do PIX (opcional)</label>
+          <div class="photo-picker">
+            <div class="photo-preview" id="preview-comprovante-pagto">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <div class="photo-picker-actions">
+              <button type="button" class="sm btn-escolher-comprovante-pagto">Escolher foto</button>
+              <button type="button" class="sm danger btn-remover-comprovante-pagto" style="display:none;">Remover</button>
+            </div>
+          </div>
+          <input type="file" accept="image/*" class="input-comprovante-pagto" style="display:none;">
+        </div>
+
         <div style="display: flex; gap: 8px;">
           <button class="btn-confirmar-pagto" style="flex: 1; background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer;">
             Confirmar pagamento
@@ -1255,6 +1395,46 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
     document.body.appendChild(overlay);
 
     let formaEscolhida = null;
+    let comprovanteEscolhido = null;
+
+    const secaoComprovante = overlay.querySelector('#secao-comprovante-pagto');
+    const previewComprovante = overlay.querySelector('#preview-comprovante-pagto');
+    const inputComprovante = overlay.querySelector('.input-comprovante-pagto');
+    const btnRemoverComprovante = overlay.querySelector('.btn-remover-comprovante-pagto');
+
+    function atualizarPreviewComprovantePagto() {
+      if (!previewComprovante) return;
+      if (comprovanteEscolhido) {
+        previewComprovante.innerHTML = `<img src="${comprovanteEscolhido}" alt="Comprovante">`;
+        if (btnRemoverComprovante) btnRemoverComprovante.style.display = '';
+      } else {
+        previewComprovante.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>`;
+        if (btnRemoverComprovante) btnRemoverComprovante.style.display = 'none';
+      }
+    }
+
+    overlay.querySelector('.btn-escolher-comprovante-pagto')?.addEventListener('click', () => {
+      inputComprovante?.click();
+    });
+
+    inputComprovante?.addEventListener('change', (event) => {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        toast('Selecione um arquivo de imagem.');
+        return;
+      }
+      comprimirImagem(file).then(dataUrl => {
+        comprovanteEscolhido = dataUrl;
+        atualizarPreviewComprovantePagto();
+      });
+    });
+
+    btnRemoverComprovante?.addEventListener('click', () => {
+      comprovanteEscolhido = null;
+      atualizarPreviewComprovantePagto();
+    });
 
     // Selecionar forma de pagamento
     overlay.querySelectorAll('.btn-forma').forEach(btn => {
@@ -1266,6 +1446,11 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
         btn.style.borderColor = '#10b981';
         btn.style.background = btn.getAttribute('data-forma') === 'dinheiro' ? '#dcfce7' : '#dbeafe';
         formaEscolhida = btn.getAttribute('data-forma');
+        if (secaoComprovante) secaoComprovante.style.display = formaEscolhida === 'pix' ? 'block' : 'none';
+        if (formaEscolhida !== 'pix') {
+          comprovanteEscolhido = null;
+          atualizarPreviewComprovantePagto();
+        }
       });
     });
 
@@ -1283,7 +1468,7 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
         return;
       }
       overlay.remove();
-      resolve({ formaPagamento: formaEscolhida, pedidoId: pedidoSelecionado });
+      resolve({ formaPagamento: formaEscolhida, pedidoId: pedidoSelecionado, comprovante: comprovanteEscolhido });
     });
 
     // Cancelar
@@ -1529,6 +1714,7 @@ async function fazerPedido() {
     quantidade: itensPedido.reduce((s, i) => s + i.quantidade, 0),
     valorTotal, valorPago, parcelas,
     formaPagamento: forma,
+    comprovante: forma === 'pix' ? (comprovantePedidoTemp || null) : null,
     data: new Date().toISOString()
   });
 
@@ -1565,6 +1751,48 @@ function selecionarFormaPagamento(valor) {
   document.querySelectorAll('#chips-forma-pagamento .payment-chip').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-valor') === valor);
   });
+  const grupo = document.getElementById('grupo-comprovante-pedido');
+  if (grupo) {
+    grupo.style.display = valor === 'pix' ? 'block' : 'none';
+    if (valor !== 'pix') {
+      comprovantePedidoTemp = null;
+      atualizarPreviewComprovantePedido();
+    }
+  }
+}
+
+let comprovantePedidoTemp = null;
+
+function selecionarComprovantePedido(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    toast('Selecione um arquivo de imagem.');
+    return;
+  }
+  comprimirImagem(file).then(dataUrl => {
+    comprovantePedidoTemp = dataUrl;
+    atualizarPreviewComprovantePedido();
+  });
+}
+
+function atualizarPreviewComprovantePedido() {
+  const preview = document.getElementById('ped-comprovante-preview');
+  const removerBtn = document.getElementById('ped-comprovante-remover-btn');
+  if (!preview) return;
+  if (comprovantePedidoTemp) {
+    preview.innerHTML = `<img src="${comprovantePedidoTemp}" alt="Comprovante do PIX">`;
+    if (removerBtn) removerBtn.style.display = '';
+  } else {
+    preview.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>`;
+    if (removerBtn) removerBtn.style.display = 'none';
+  }
+}
+
+function removerComprovantePedido() {
+  comprovantePedidoTemp = null;
+  atualizarPreviewComprovantePedido();
 }
 
 function limparPedido() {
@@ -1580,7 +1808,65 @@ function limparPedido() {
 
 // --- HISTÓRICO ---
 
+let modoHistorico = 'pedidos';
+
+function alternarModoHistorico(modo) {
+  modoHistorico = modo;
+  document.querySelectorAll('#historico-modo .category-button').forEach(b => {
+    b.classList.toggle('active', b.dataset.modo === modo);
+  });
+  renderHistorico();
+}
+
+function renderHistoricoPagamentos() {
+  const tbody = document.getElementById("tbody-historico");
+  if (!tbody) return;
+  const filtro = document.getElementById("filtro-cliente")?.value || "";
+
+  if (!pagamentos.length) {
+    tbody.innerHTML = '<div class="empty">Nenhum pagamento registrado.</div>';
+    return;
+  }
+
+  const filtrados = (filtro ? pagamentos.filter(pg => pg.clienteId === filtro) : pagamentos)
+    .slice()
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  if (!filtrados.length) {
+    tbody.innerHTML = '<div class="empty">Nenhum pagamento encontrado.</div>';
+    return;
+  }
+
+  tbody.innerHTML = `
+    <div class="pagamentos-lista">
+      ${filtrados.map(pg => {
+        const c = clientes.find(cl => cl.id === pg.clienteId);
+        const data = pg.data ? new Date(pg.data).toLocaleDateString("pt-BR") : "—";
+        const forma = pg.formaPagamento === 'dinheiro' ? 'Dinheiro' : 'PIX';
+        const comprovanteLink = pg.comprovante
+          ? ` · <a href="#" onclick="event.preventDefault(); mostrarComprovante('${pg.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante</a>`
+          : '';
+        return `
+          <div class="pagamento-linha">
+            <span class="pagamento-dot"></span>
+            <div class="pagamento-info">
+              <div class="pagamento-data">${c ? c.nome : 'Cliente removido'}</div>
+              <div class="pagamento-forma">${data} · ${forma}${comprovanteLink}</div>
+            </div>
+            <div class="pagamento-valor money"><span class="cur">R$</span>${pg.valor.toFixed(2)}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
 function renderHistorico() {
+  if (modoHistorico === 'pagamentos') {
+    renderHistoricoPagamentos();
+    return;
+  }
+
   const tbody = document.getElementById("tbody-historico");
   if (!tbody) return;
   const filtro = document.getElementById("filtro-cliente")?.value || "";
@@ -1684,6 +1970,7 @@ function renderHistorico() {
           </div>
         ` : ''}
         <div class="order-card-itens" onclick="event.stopPropagation()">
+          ${ped.comprovante ? `<div class="ch-empty" style="padding-bottom:6px;"><a href="#" onclick="event.preventDefault(); mostrarComprovante('${ped.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante do PIX</a></div>` : ''}
           ${itensHtml}
         </div>
       </div>

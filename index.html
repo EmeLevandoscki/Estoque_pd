@@ -3,17 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Início - Gerenciador de Estoque & Pedidos</title>
+  <title>Gerenciador de Estoque & Pedidos</title>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="lock-loading" id="tela-carregando"></div>
   <div class="lock-screen" id="tela-bloqueio">
-    <div class="lock-card">
-      <h2 id="lock-titulo">Sistema Bloqueado</h2>
-      <p id="lock-subtitulo">Insira a sua senha de acesso</p>
-      <input type="password" id="campo-senha" placeholder="••••" onkeydown="if(event.key==='Enter') verificarSenha()">
-      <button class="primary" onclick="verificarSenha()" id="btn-lock">Entrar</button>
+    <div class="lock-card" id="lock-card">
+      <div class="lock-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+      </div>
+      <h2 id="lock-titulo">Bem-vinda de volta</h2>
+      <p id="lock-subtitulo">Entre com seus dados pra continuar</p>
+
+      <div class="lock-field">
+        <label for="campo-email">Usuário</label>
+        <input type="email" id="campo-email" placeholder="seu@email.com" autocomplete="username" oninput="validarCamposLogin()" onkeydown="if(event.key==='Enter') document.getElementById('campo-senha').focus()">
+      </div>
+
+      <div class="lock-field">
+        <label for="campo-senha">Senha</label>
+        <div class="lock-senha-wrap">
+          <input type="password" id="campo-senha" placeholder="••••••••" autocomplete="current-password" oninput="validarCamposLogin()" onkeydown="if(event.key==='Enter') verificarSenha()">
+          <button type="button" class="lock-toggle-senha" id="btn-toggle-senha" onclick="alternarVisibilidadeSenha()" tabindex="-1" aria-label="Mostrar senha">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="button" class="lock-submit" onclick="verificarSenha()" id="btn-lock" disabled>Entrar</button>
+
+      <div class="lock-erro" id="lock-erro">Usuário ou senha incorretos</div>
     </div>
   </div>
 
@@ -22,20 +43,22 @@
       <button class="sm danger" onclick="bloquearSistema()">Bloquear</button>
     </div>
 
-    <div class="tabs">
-      <a class="tab-btn active" href="index.html">Início</a>
-      <a class="tab-btn" href="estoque.html">Estoque</a>
-      <a class="tab-btn" href="pedidos.html">Pedidos</a>
-      <a class="tab-btn" href="clientes.html">Clientes</a>
+    <div class="tabs" id="tabs-nav">
+      <a class="tab-btn" href="#inicio" data-tela="inicio" onclick="mostrarTela('inicio'); return false;">Início</a>
+      <a class="tab-btn" href="#estoque" data-tela="estoque" onclick="mostrarTela('estoque'); return false;">Estoque</a>
+      <a class="tab-btn" href="#pedidos" data-tela="pedidos" onclick="mostrarTela('pedidos'); return false;">Pedidos</a>
+      <a class="tab-btn" href="#clientes" data-tela="clientes" onclick="mostrarTela('clientes'); return false;">Clientes</a>
     </div>
 
-    <!-- PAINEL DE INÍCIO: LANÇADOR DE AÇÕES RÁPIDAS -->
-    <div id="inicio" class="panel active">
+    <!-- ==================== -->
+    <!-- PAINEL: INÍCIO (LANÇADOR DE AÇÕES RÁPIDAS) -->
+    <!-- ==================== -->
+    <div id="inicio" class="panel">
       <div class="action-launcher">
         <div class="greeting">Olá</div>
         <div class="greeting-sub">O que você quer fazer?</div>
 
-        <button type="button" class="hero-banner" onclick="window.location.href='pedidos.html'">
+        <button type="button" class="hero-banner" onclick="mostrarTela('pedidos')">
           <span class="hero-banner-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2l1 6 5-3 5 3 1-6"/><path d="M4 8h16v13H4z"/><path d="M12 13v5M9.5 15.5h5"/></svg>
           </span>
@@ -46,7 +69,7 @@
         </button>
 
         <div class="action-grid">
-          <button type="button" class="action-tile" onclick="window.location.href='clientes.html'">
+          <button type="button" class="action-tile" onclick="mostrarTela('clientes')">
             <span class="action-tile-icon" style="background:var(--sage-soft); color:var(--sage);">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8h20M2 8v10a2 2 0 002 2h16a2 2 0 002-2V8M2 8V6a2 2 0 012-2h16a2 2 0 012 2v2"/><path d="M15 14h3"/></svg>
             </span>
@@ -54,7 +77,7 @@
             <span class="action-tile-sub">Cliente pagou</span>
           </button>
 
-          <button type="button" class="action-tile" onclick="window.location.href='estoque.html?novo=produto'">
+          <button type="button" class="action-tile" onclick="mostrarTela('estoque'); novoProdutoMobile();">
             <span class="action-tile-icon" style="background:var(--amber-soft); color:var(--amber);">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
             </span>
@@ -62,7 +85,7 @@
             <span class="action-tile-sub">Adicionar ao estoque</span>
           </button>
 
-          <button type="button" class="action-tile" onclick="window.location.href='clientes.html?buscar=1'">
+          <button type="button" class="action-tile" onclick="mostrarTela('clientes'); document.getElementById('busca-cliente')?.focus();">
             <span class="action-tile-icon" style="background:var(--forest-soft); color:var(--forest);">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6-6"/></svg>
             </span>
@@ -70,7 +93,7 @@
             <span class="action-tile-sub">Ver quem deve</span>
           </button>
 
-          <button type="button" class="action-tile" onclick="window.location.href='clientes.html#resumo-financeiro'">
+          <button type="button" class="action-tile" onclick="mostrarTela('clientes'); document.getElementById('resumo-financeiro')?.scrollIntoView({behavior:'smooth', block:'start'});">
             <span class="action-tile-icon" style="background:var(--brick-soft); color:var(--brick);">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/><path d="M15 7h4v4"/></svg>
             </span>
@@ -78,23 +101,328 @@
             <span class="action-tile-sub">Últimos 30 dias</span>
           </button>
         </div>
+
+        <p style="text-align:center; margin-top:16px;">
+          <a href="#historico" onclick="mostrarTela('historico'); return false;" style="font-size:13px; color:var(--forest); font-weight:500; text-decoration:none;">Ver histórico completo →</a>
+        </p>
       </div>
     </div>
 
-    <nav class="bottom-nav">
-      <a class="bottom-nav-item active" href="index.html">
+    <!-- ==================== -->
+    <!-- PAINEL: ESTOQUE -->
+    <!-- ==================== -->
+    <div id="estoque" class="panel">
+      <h1>Estoque</h1>
+      <p class="page-subtitle" id="estoque-subtitulo">0 produtos</p>
+
+      <div class="form-sheet" id="sheet-produto">
+        <div class="sheet-header">
+          <h2 id="estoque-title">Novo produto</h2>
+          <button type="button" class="sheet-close" onclick="cancelarEdicaoProduto()" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="sheet-body">
+          <input type="hidden" id="edit-produto-id">
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Foto do produto</label>
+            <div class="photo-picker">
+              <div class="photo-preview" id="p-foto-preview">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>
+              </div>
+              <div class="photo-picker-actions">
+                <button type="button" class="sm" onclick="document.getElementById('p-foto-input').click()">Escolher foto</button>
+                <button type="button" class="sm danger" id="p-foto-remover-btn" onclick="removerFotoProduto()" style="display:none;">Remover</button>
+              </div>
+            </div>
+            <input type="file" accept="image/*" id="p-foto-input" style="display:none;" onchange="selecionarFotoProduto(event)">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nome</label>
+              <input id="p-nome" placeholder="Ex: Batom Vermelho" onkeydown="handleEnterKey(event, 'p-cat')">
+            </div>
+            <div class="form-group">
+              <label>Categoria</label>
+              <input id="p-cat" placeholder="Ex: Maquiagem" onkeydown="handleCategoryKey(event)" autocomplete="off">
+              <div class="category-suggestions" id="categoria-sugestoes"></div>
+              <div class="category-buttons" id="botoes-rapidos-categoria"> </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Quantidade</label><input type="number" id="p-qty" value="0" min="0" inputmode="numeric" onkeydown="handleEnterKey(event, 'p-custo')"></div>
+            <div class="form-group"><label>Preço de custo (R$)</label><input type="number" id="p-custo" value="0" step="0.01" min="0" inputmode="decimal" onkeydown="handleEnterKey(event, 'p-preco')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Preço de venda (R$)</label><input type="number" id="p-preco" value="0" step="0.01" min="0" inputmode="decimal" onkeydown="handleEnterKey(event, 'p-promocao')"></div>
+            <div class="form-group">
+              <label>Em promoção?</label>
+              <select id="p-promocao" onkeydown="handleEnterKey(event, 'p-descricao')">
+                <option value="">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tipo de produto</label>
+              <select id="p-tipo" onchange="toggleCampoCombo()">
+                <option value="simples">Produto simples</option>
+                <option value="combo">Combo</option>
+              </select>
+            </div>
+            <div class="form-group" id="grupo-combo" style="display:none;">
+              <label>Itens do combo <span class="help-icon" title="1. Cadastre produtos SIMPLES antes&#10;2. Digite o nome do produto&#10;3. Defina a quantidade&#10;4. Clique Adicionar">?</span></label>
+              <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-end; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 160px;">
+                  <label style="font-size: 12px; display: block; margin-bottom: 4px;">Produto</label>
+                  <input type="text" id="p-combo-produto" placeholder="Digite ou selecione um produto..." list="lista-produtos-combo" oninput="atualizarListaProdutosCombo()">
+                  <datalist id="lista-produtos-combo"></datalist>
+                </div>
+                <div style="width: 90px;">
+                  <label style="font-size: 12px; display: block; margin-bottom: 4px;">Qtd</label>
+                  <input type="number" id="p-combo-qty" value="1" min="1" inputmode="numeric">
+                </div>
+                <button type="button" class="primary" onclick="adicionarItemAoCombo()" style="padding: 8px 16px; min-height: 44px;">Adicionar</button>
+              </div>
+              <div id="lista-itens-combo" style="display: none; margin-top: 12px; padding: 12px; background: var(--paper); border-radius: 10px; border: 0.5px solid var(--rule);">
+                <small style="display: block; color: var(--ink-2); margin-bottom: 8px; font-weight: 500;">Itens adicionados:</small>
+                <div id="itens-combo-tags" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+              </div>
+              <input type="hidden" id="p-itens-combo" value="">
+              <small style="display:block;color:var(--ink-3);margin-top:4px;">Selecione produtos do estoque e adicione ao combo</small>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Descrição do produto</label>
+            <textarea id="p-descricao" placeholder="Ex: Batom hidratante, cor vermelho vinho, durabilidade de 8h" rows="3" onkeydown="handleEnterKey(event, 'salvar-produto')"></textarea>
+          </div>
+        </div>
+        <div class="sheet-footer">
+          <div class="btn-row">
+            <button class="primary" onclick="salvarProduto()" id="salvar-produto">Salvar produto</button>
+            <button onclick="cancelarEdicaoProduto()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-search">
+        <div class="search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="busca-produto" placeholder="Buscar produto..." oninput="filtrarEstoque()">
+        </div>
+      </div>
+
+      <h3>Categorias</h3>
+      <div class="category-filter" id="filtro-categoria-estoque">
+        <button class="category-button active" onclick="filtrarCategoriaEstoque('todos')">Todas</button>
+      </div>
+
+      <h3>Produtos cadastrados</h3>
+      <div class="product-list" id="tbody-estoque"></div>
+    </div>
+
+    <!-- ==================== -->
+    <!-- PAINEL: PEDIDOS -->
+    <!-- ==================== -->
+    <div id="pedidos" class="panel">
+      <h1>Pedidos</h1>
+      <p class="page-subtitle">Monte um novo pedido para um cliente</p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente</label>
+          <select id="ped-cliente"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Parcelas</label>
+          <select id="ped-parcelas">
+            <option value="1">1x (à vista)</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Forma de pagamento</label>
+        <div class="payment-chips" id="chips-forma-pagamento">
+          <button type="button" class="payment-chip active" data-valor="dinheiro" onclick="selecionarFormaPagamento('dinheiro')">Dinheiro</button>
+          <button type="button" class="payment-chip" data-valor="pix" onclick="selecionarFormaPagamento('pix')">PIX</button>
+          <button type="button" class="payment-chip" data-valor="cartao" onclick="selecionarFormaPagamento('cartao')">Cartão</button>
+          <button type="button" class="payment-chip" data-valor="debito" onclick="selecionarFormaPagamento('debito')">Débito</button>
+          <button type="button" class="payment-chip" data-valor="credito" onclick="selecionarFormaPagamento('credito')">Crédito</button>
+        </div>
+        <input type="hidden" id="ped-forma" value="dinheiro">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor pago agora (R$)</label>
+          <input type="number" id="ped-pago" value="0" step="0.01" min="0" inputmode="decimal" onkeydown="handleEnterKey(event, 'ped-produto')">
+        </div>
+      </div>
+
+      <div class="form-group" id="grupo-comprovante-pedido" style="display:none; margin-bottom:16px;">
+        <label>Comprovante do PIX (opcional)</label>
+        <div class="photo-picker">
+          <div class="photo-preview" id="ped-comprovante-preview">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+          <div class="photo-picker-actions">
+            <button type="button" class="sm" onclick="document.getElementById('ped-comprovante-input').click()">Escolher foto</button>
+            <button type="button" class="sm danger" id="ped-comprovante-remover-btn" onclick="removerComprovantePedido()" style="display:none;">Remover</button>
+          </div>
+        </div>
+        <input type="file" accept="image/*" id="ped-comprovante-input" style="display:none;" onchange="selecionarComprovantePedido(event)">
+      </div>
+
+      <hr class="sep">
+
+      <h3>Categorias</h3>
+      <div class="category-filter" id="filtro-categoria">
+        <button class="category-button active" onclick="filtrarCategoria('todos')">Todas</button>
+      </div>
+
+      <h3>Adicionar produtos</h3>
+      <div class="item-linha">
+        <div class="form-group">
+          <label>Produto / Combo do estoque</label>
+          <input type="text" id="ped-produto" placeholder="Digite para buscar um produto ou combo..." list="lista-produtos-pedido" autocomplete="off" oninput="atualizarListaProdutosPedido()">
+          <datalist id="lista-produtos-pedido"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Qtd</label>
+          <input type="number" id="ped-qty" value="1" min="1" inputmode="numeric" onkeydown="handleEnterKey(event, 'adicionar-item')">
+        </div>
+        <button class="primary" onclick="adicionarItemPedido()" id="adicionar-item">Adicionar</button>
+      </div>
+      <p class="page-subtitle" style="margin-bottom:16px;">Se escolher um combo do estoque, ele monta o pedido com os produtos já cadastrados do combo.</p>
+
+      <div id="itens-lista" style="margin-top:12px; min-height:32px"></div>
+      <div class="resumo-pedido" id="resumo-pedido" style="display:none">
+        <div id="resumo-itens"></div>
+        <div class="total" id="resumo-total"></div>
+      </div>
+
+      <div class="btn-row" style="margin-top:24px">
+        <button class="primary" onclick="fazerPedido()">Registrar pedido</button>
+        <button onclick="limparPedido()">Limpar tudo</button>
+      </div>
+    </div>
+
+    <!-- ==================== -->
+    <!-- PAINEL: CLIENTES -->
+    <!-- ==================== -->
+    <div id="clientes" class="panel">
+      <h1>Clientes</h1>
+      <p class="page-subtitle" id="clientes-subtitulo">0 clientes ativos</p>
+
+      <button type="button" class="sheet-trigger" onclick="novoClienteMobile()">+ Novo cliente</button>
+
+      <div class="form-sheet" id="sheet-cliente">
+        <div class="sheet-header">
+          <h2 id="cliente-title">Novo cliente</h2>
+          <button type="button" class="sheet-close" onclick="cancelarEdicaoCliente()" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="sheet-body">
+          <input type="hidden" id="edit-cliente-id">
+          <div class="form-row">
+            <div class="form-group" style="max-width:400px">
+              <label>Nome do Cliente</label>
+              <input id="c-nome" placeholder="Ex: Maria Silva" onkeydown="handleEnterKey(event, 'salvar-cliente')">
+            </div>
+          </div>
+        </div>
+        <div class="sheet-footer">
+          <div class="btn-row">
+            <button class="primary" onclick="salvarCliente()" id="salvar-cliente">Salvar cliente</button>
+            <button onclick="cancelarEdicaoCliente()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESUMO FINANCEIRO -->
+      <div class="card-block" id="resumo-financeiro" style="padding: 16px; margin-bottom: 20px; scroll-margin-top: 16px;">
+        <h3 style="margin-top: 0;">Resumo financeiro</h3>
+        <div class="resumo-grid">
+          <div class="resumo-tile">
+            <div class="resumo-tile-label">Total a receber</div>
+            <div id="resumo-receber" class="resumo-tile-valor money" style="color: var(--brick);"><span class="cur">R$</span>0,00</div>
+          </div>
+          <div class="resumo-tile">
+            <div class="resumo-tile-label">Valor em estoque</div>
+            <div id="resumo-estoque" class="resumo-tile-valor money" style="color: var(--forest);"><span class="cur">R$</span>0,00</div>
+          </div>
+          <div class="resumo-tile">
+            <div class="resumo-tile-label">Total gasto (custo)</div>
+            <div id="resumo-custo" class="resumo-tile-valor money" style="color: var(--brick);"><span class="cur">R$</span>0,00</div>
+          </div>
+          <div class="resumo-tile">
+            <div class="resumo-tile-label">Lucro estimado</div>
+            <div id="resumo-lucro" class="resumo-tile-valor money" style="color: var(--sage);"><span class="cur">R$</span>0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Clientes cadastrados</h3>
+      <div class="search-bar" style="margin-bottom: 12px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="busca-cliente" placeholder="Buscar cliente..." oninput="filtrarClientes()">
+      </div>
+      <div class="client-list" id="tbody-clientes"></div>
+    </div>
+
+    <!-- ==================== -->
+    <!-- PAINEL: HISTÓRICO -->
+    <!-- ==================== -->
+    <div id="historico" class="panel">
+      <h1>Histórico</h1>
+      <p class="page-subtitle">Todos os pedidos e pagamentos registrados</p>
+
+      <div class="category-filter" id="historico-modo" style="margin-top:0; margin-bottom:16px;">
+        <button type="button" class="category-button active" data-modo="pedidos" onclick="alternarModoHistorico('pedidos')">Pedidos</button>
+        <button type="button" class="category-button" data-modo="pagamentos" onclick="alternarModoHistorico('pagamentos')">Pagamentos</button>
+      </div>
+
+      <div class="form-group" style="max-width:320px; margin-bottom:20px;">
+        <label>Filtrar por cliente</label>
+        <select id="filtro-cliente" onchange="renderHistorico()">
+          <option value="">Todos os clientes</option>
+        </select>
+      </div>
+
+      <div id="tbody-historico"></div>
+    </div>
+
+    <!-- DETALHE DO CLIENTE (tela cheia) -->
+    <div class="detail-sheet" id="cliente-detalhe">
+      <div class="detail-header">
+        <button type="button" class="detail-back" onclick="fecharDetalheCliente()" aria-label="Voltar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="detail-header-title">
+          <div class="detail-nome" id="cliente-detalhe-nome">Cliente</div>
+          <div class="detail-sub" id="cliente-detalhe-sub">0 pedidos</div>
+        </div>
+      </div>
+      <div class="detail-body" id="cliente-detalhe-body"></div>
+    </div>
+
+    <button type="button" class="fab" id="fab-acao" aria-label="Ação rápida" style="display:none;">+</button>
+
+    <nav class="bottom-nav" id="bottom-nav-list">
+      <a class="bottom-nav-item" href="#inicio" data-tela="inicio" onclick="mostrarTela('inicio'); return false;">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
         Início
       </a>
-      <a class="bottom-nav-item" href="estoque.html">
+      <a class="bottom-nav-item" href="#estoque" data-tela="estoque" onclick="mostrarTela('estoque'); return false;">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
         Estoque
       </a>
-      <a class="bottom-nav-item" href="pedidos.html">
+      <a class="bottom-nav-item" href="#pedidos" data-tela="pedidos" onclick="mostrarTela('pedidos'); return false;">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg>
         Pedidos
       </a>
-      <a class="bottom-nav-item" href="clientes.html">
+      <a class="bottom-nav-item" href="#clientes" data-tela="clientes" onclick="mostrarTela('clientes'); return false;">
         <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.4.5 4 2.6 4 5.8"/></svg>
         Clientes
       </a>
@@ -102,9 +430,20 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div class="modal-overlay" id="modal-categoria">
+    <div class="modal-content">
+      <h3>Adicionar nova categoria</h3>
+      <input type="text" id="nova-categoria-input" placeholder="Ex: Cuidados Capilares" autofocus>
+      <div class="modal-buttons">
+        <button onclick="fecharModalCategoria()">Cancelar</button>
+        <button class="primary" onclick="adicionarCategoria()">Adicionar</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

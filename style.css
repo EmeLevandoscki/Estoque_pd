@@ -9,6 +9,7 @@
   --rule: #E5DFD1;
   --rule-strong: #C9C2AF;
   --forest: #2B4C3F;
+  --forest-2: #1F3830;
   --forest-soft: #E4EBE4;
   --amber: #C48A0A;
   --amber-soft: #F5E9CF;
@@ -111,6 +112,20 @@ body {
 /* === TELA DE BLOQUEIO === */
 /* ==================== */
 
+.lock-loading {
+  position: fixed;
+  inset: 0;
+  background: #FFFFFF;
+  z-index: 10001;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.lock-loading.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .lock-screen {
   position: fixed;
   top: 0;
@@ -122,42 +137,152 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  padding: 16px;
+  padding: 24px;
 }
 
 .lock-card {
   background: var(--card);
-  padding: 32px;
+  border: 0.5px solid var(--rule-strong);
+  padding: 32px 28px;
   border-radius: 20px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 1px 2px rgba(25,26,34,0.04), 0 12px 32px rgba(25,26,34,0.06);
   width: 100%;
   max-width: 380px;
-  text-align: center;
+}
+
+.lock-card.shake {
+  animation: lockShake 0.4s;
+}
+
+@keyframes lockShake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-8px); }
+  40%, 60% { transform: translateX(8px); }
+}
+
+.lock-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--forest-soft);
+  color: var(--forest);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
 }
 
 .lock-card h2 {
   font-family: 'Source Serif 4', serif;
-  font-weight: 600;
-  font-size: 24px;
-  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  text-align: center;
+  margin-bottom: 6px;
   color: var(--ink);
 }
 
 .lock-card p {
   font-size: 13px;
   color: var(--ink-2);
-  margin-bottom: 1.5rem;
-}
-
-.lock-card input {
-  margin-bottom: 1rem;
   text-align: center;
-  font-size: 18px;
-  letter-spacing: 4px;
+  margin-bottom: 28px;
 }
 
-.lock-card button {
+.lock-field {
+  margin-bottom: 16px;
+}
+
+.lock-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+
+.lock-field input {
   width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 0.5px solid var(--rule-strong);
+  border-radius: 12px;
+  background: var(--paper);
+  font-size: 16px;
+  color: var(--ink);
+  min-height: 0;
+}
+
+.lock-field input::placeholder {
+  color: var(--ink-3);
+}
+
+.lock-field input:focus {
+  outline: none;
+  border-color: var(--forest);
+  box-shadow: 0 0 0 3px var(--forest-soft);
+}
+
+.lock-senha-wrap {
+  position: relative;
+}
+
+.lock-senha-wrap input {
+  padding-right: 44px;
+}
+
+.lock-toggle-senha {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 48px;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 0;
+}
+
+.lock-submit {
+  width: 100%;
+  height: 50px;
+  margin-top: 8px;
+  background: var(--forest);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 12px;
+  border: none;
+}
+
+.lock-submit:hover:not(:disabled) {
+  background: var(--forest-2);
+}
+
+.lock-submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.lock-submit:disabled {
+  background: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.lock-erro {
+  display: none;
+  margin-top: 16px;
+  color: var(--brick);
+  background: var(--brick-soft);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  text-align: center;
 }
 
 /* ==================== */
