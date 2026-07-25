@@ -636,7 +636,12 @@ function getHtmlProdutoEstoque(p) {
       <div class="product-card-body">
         <div class="product-nome-grid">${p.nome || 'Sem nome'}</div>
         <div class="product-cat-grid">${p.categoria || 'Geral'}</div>
-        <div class="product-preco-grid money"><span class="cur">R$</span>${precoFinal.toFixed(2)}</div>
+        <div class="product-card-price-row">
+          <span class="product-preco-grid money"><span class="cur">R$</span>${precoFinal.toFixed(2)}</span>
+          <button type="button" class="product-cart-add" onclick="event.stopPropagation(); adicionarAoCarrinho('${p.id}')" aria-label="Adicionar ao carrinho">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          </button>
+        </div>
         <div class="qty-ctrl" onclick="event.stopPropagation()">
           <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
           <span class="qty-num">${qtdFinal}</span>
@@ -645,6 +650,154 @@ function getHtmlProdutoEstoque(p) {
       </div>
     </div>
   `;
+}
+
+// --- CARRINHO (Estoque -> Pedido) ---
+
+let carrinhoEstoque = [];
+
+function adicionarAoCarrinho(produtoId) {
+  const prod = produtos.find(p => p.id === produtoId);
+  if (!prod) return;
+
+  if (prod.tipo === 'combo') {
+    const itensDoCombo = Array.isArray(prod.itensCombo) ? prod.itensCombo : [];
+    if (!itensDoCombo.length) { toast('Esse combo não possui itens definidos.'); return; }
+
+    let erro = null;
+    itensDoCombo.forEach(item => {
+      const base = produtos.find(p => p.id === item.produtoId || p.nome.toLowerCase() === (item.nome || '').toLowerCase());
+      if (!base) { erro = `Não foi possível localizar "${item.nome}" no estoque.`; return; }
+      if (!isProdutoAtivo(base)) { erro = `${base.nome} está indisponível no momento.`; return; }
+      const jaNoCarrinho = carrinhoEstoque.find(i => i.produtoId === base.id && i.tipo !== 'combo');
+      const qtdNecessaria = (jaNoCarrinho ? jaNoCarrinho.quantidade : 0) + (item.quantidade || 1);
+      if (getQuantidadeProduto(base) < qtdNecessaria) { erro = `Estoque insuficiente para ${base.nome}.`; return; }
+    });
+    if (erro) { toast(erro); return; }
+
+    itensDoCombo.forEach(item => {
+      const base = produtos.find(p => p.id === item.produtoId || p.nome.toLowerCase() === (item.nome || '').toLowerCase());
+      if (!base) return;
+      const qtdNecessaria = item.quantidade || 1;
+      const existente = carrinhoEstoque.find(i => i.produtoId === base.id && i.tipo !== 'combo');
+      if (existente) {
+        existente.quantidade += qtdNecessaria;
+      } else {
+        carrinhoEstoque.push({
+          produtoId: base.id, nome: base.nome, preco: base.precoVenda || 0,
+          quantidade: qtdNecessaria, categoria: base.categoria || 'Geral',
+          tipo: 'simples', descricao: base.descricao || '', itensCombo: []
+        });
+      }
+    });
+    toast(`Combo "${prod.nome}" adicionado ao carrinho.`);
+    atualizarBarraCarrinho();
+    return;
+  }
+
+  if (!isProdutoAtivo(prod)) { toast(prod.nome + ' está sem estoque.'); return; }
+  const qtdAtual = getQuantidadeProduto(prod);
+  const existente = carrinhoEstoque.find(i => i.produtoId === produtoId && i.tipo !== 'combo');
+  const jaNoCarrinho = existente ? existente.quantidade : 0;
+  if (jaNoCarrinho + 1 > qtdAtual) { toast('Estoque insuficiente para ' + prod.nome + '.'); return; }
+
+  if (existente) {
+    existente.quantidade += 1;
+  } else {
+    carrinhoEstoque.push({
+      produtoId, nome: prod.nome, preco: prod.precoVenda || 0,
+      quantidade: 1, categoria: prod.categoria || 'Geral',
+      tipo: prod.tipo || 'simples', descricao: prod.descricao || '', itensCombo: []
+    });
+  }
+  toast(prod.nome + ' adicionado ao carrinho.');
+  atualizarBarraCarrinho();
+}
+
+function removerDoCarrinho(produtoId) {
+  carrinhoEstoque = carrinhoEstoque.filter(i => i.produtoId !== produtoId);
+  renderCarrinhoEstoque();
+}
+
+function esvaziarCarrinho() {
+  carrinhoEstoque = [];
+  renderCarrinhoEstoque();
+}
+
+function atualizarBarraCarrinho() {
+  const bar = document.getElementById('cart-bar');
+  if (!bar) return;
+  const qtdTotal = carrinhoEstoque.reduce((s, i) => s + i.quantidade, 0);
+  if (qtdTotal > 0) {
+    bar.style.display = 'flex';
+    const contador = document.getElementById('cart-bar-count');
+    if (contador) contador.textContent = qtdTotal;
+    const total = carrinhoEstoque.reduce((s, i) => s + i.preco * i.quantidade, 0);
+    const totalEl = document.getElementById('cart-bar-total');
+    if (totalEl) totalEl.innerHTML = `<span class="cur">R$</span>${total.toFixed(2)}`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function renderCarrinhoEstoque() {
+  const lista = document.getElementById('carrinho-itens-lista');
+  const resumo = document.getElementById('carrinho-resumo');
+  const totalEl = document.getElementById('carrinho-total');
+  const subEl = document.getElementById('carrinho-sheet-sub');
+  if (!lista) return;
+
+  const qtdTotal = carrinhoEstoque.reduce((s, i) => s + i.quantidade, 0);
+  if (subEl) subEl.textContent = `${qtdTotal} ${qtdTotal === 1 ? 'item' : 'itens'}`;
+
+  if (!carrinhoEstoque.length) {
+    lista.innerHTML = '<div class="empty">Carrinho vazio.</div>';
+    if (resumo) resumo.style.display = 'none';
+  } else {
+    lista.innerHTML = carrinhoEstoque.map(i => `
+      <div class="item-card">
+        <div class="item-card-info">
+          <div class="item-card-nome">${i.nome} <span class="ch-item-cat">x${i.quantidade}</span></div>
+          <div class="item-card-sub money"><span class="cur">R$</span>${(i.preco * i.quantidade).toFixed(2)}</div>
+        </div>
+        <button type="button" class="item-card-remove" onclick="removerDoCarrinho('${i.produtoId}')" aria-label="Remover item">&#10005;</button>
+      </div>
+    `).join('');
+    const total = carrinhoEstoque.reduce((s, i) => s + i.preco * i.quantidade, 0);
+    if (totalEl) totalEl.innerHTML = `<span style="font-size:13px;color:var(--ink-2);">Total</span> <span class="money"><span class="cur">R$</span>${total.toFixed(2)}</span>`;
+    if (resumo) resumo.style.display = 'block';
+  }
+  atualizarBarraCarrinho();
+}
+
+function abrirCarrinhoEstoque() {
+  renderCarrinhoEstoque();
+  document.getElementById('carrinho-sheet')?.classList.add('open');
+}
+
+function fecharCarrinhoEstoque() {
+  document.getElementById('carrinho-sheet')?.classList.remove('open');
+}
+
+function fecharCarrinhoEIrParaPedido() {
+  if (!carrinhoEstoque.length) {
+    toast('Seu carrinho está vazio.');
+    return;
+  }
+  carrinhoEstoque.forEach(item => {
+    const existente = itensPedido.find(i => i.produtoId === item.produtoId && i.tipo !== 'combo');
+    if (existente) {
+      existente.quantidade += item.quantidade;
+    } else {
+      itensPedido.push({ ...item });
+    }
+  });
+  carrinhoEstoque = [];
+  renderItensPedido();
+  fecharCarrinhoEstoque();
+  atualizarBarraCarrinho();
+  mostrarTela('pedidos');
+  toast('Itens do carrinho adicionados ao pedido.');
 }
 
 function renderEstoque() {

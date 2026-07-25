@@ -220,6 +220,37 @@
       <div class="product-list" id="tbody-estoque"></div>
     </div>
 
+    <!-- BARRA E FOLHA DO CARRINHO (Estoque) -->
+    <button type="button" class="cart-bar" id="cart-bar" onclick="abrirCarrinhoEstoque()" style="display:none;">
+      <span class="cart-bar-info">
+        <span class="cart-bar-count" id="cart-bar-count">0</span>
+        <span class="cart-bar-total money" id="cart-bar-total"><span class="cur">R$</span>0,00</span>
+      </span>
+      <span class="cart-bar-cta">Ver carrinho →</span>
+    </button>
+
+    <div class="detail-sheet" id="carrinho-sheet">
+      <div class="detail-header">
+        <button type="button" class="detail-back" onclick="fecharCarrinhoEstoque()" aria-label="Fechar carrinho">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="detail-header-title">
+          <div class="detail-nome">Carrinho</div>
+          <div class="detail-sub" id="carrinho-sheet-sub">0 itens</div>
+        </div>
+      </div>
+      <div class="detail-body">
+        <div id="carrinho-itens-lista"></div>
+        <div class="resumo-pedido" id="carrinho-resumo" style="display:none;">
+          <div class="total" id="carrinho-total"></div>
+        </div>
+        <div class="btn-row" style="margin-top:20px;">
+          <button class="primary" onclick="fecharCarrinhoEIrParaPedido()">Fechar carrinho e criar pedido</button>
+          <button onclick="esvaziarCarrinho()">Esvaziar carrinho</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ==================== -->
     <!-- PAINEL: PEDIDOS -->
     <!-- ==================== -->
