@@ -290,6 +290,10 @@
           <label>Valor pago agora (R$)</label>
           <input type="number" id="ped-pago" value="0" step="0.01" min="0" inputmode="decimal" onkeydown="handleEnterKey(event, 'ped-produto')">
         </div>
+        <div class="form-group">
+          <label>Desconto (R$)</label>
+          <input type="number" id="ped-desconto" value="0" step="0.01" min="0" inputmode="decimal" oninput="renderItensPedido()" onkeydown="handleEnterKey(event, 'ped-produto')">
+        </div>
       </div>
 
       <div class="form-group" id="grupo-comprovante-pedido" style="display:none; margin-bottom:16px;">
@@ -348,6 +352,7 @@
       <p class="page-subtitle" id="clientes-subtitulo">0 clientes ativos</p>
 
       <button type="button" class="sheet-trigger" onclick="novoClienteMobile()">+ Novo cliente</button>
+      <button type="button" id="toggle-clientes-teste" onclick="alternarClientesTeste()" style="background:none; border:none; padding:0; margin-bottom:12px; font-size:13px; color:var(--ink-3); text-decoration:underline; cursor:pointer;">Mostrar clientes de teste</button>
 
       <div class="form-sheet" id="sheet-cliente">
         <div class="sheet-header">
@@ -361,6 +366,12 @@
               <label>Nome do Cliente</label>
               <input id="c-nome" placeholder="Ex: Maria Silva" onkeydown="handleEnterKey(event, 'salvar-cliente')">
             </div>
+          </div>
+          <div class="form-row">
+            <label style="display:flex; align-items:center; gap:8px; font-weight:400; cursor:pointer;">
+              <input type="checkbox" id="c-teste" style="width:auto;">
+              Cliente de teste (não aparece na lista, no histórico nem nos totais)
+            </label>
           </div>
         </div>
         <div class="sheet-footer">

@@ -1096,12 +1096,21 @@ function calcularDetalheCliente(c) {
   return { saldo, totalPago, qtdPedidos, pedidosDoCliente, pedidosPendentes, saldoPorPedido, pagoPorPedido, pagamentosDoCliente };
 }
 
+let mostrarClientesTeste = false;
+
+function alternarClientesTeste() {
+  mostrarClientesTeste = !mostrarClientesTeste;
+  const btn = document.getElementById('toggle-clientes-teste');
+  if (btn) btn.textContent = mostrarClientesTeste ? 'Ocultar clientes de teste' : 'Mostrar clientes de teste';
+  renderClientes();
+}
+
 function getClientesOrdenados() {
   const clientesFixos = [];
   const clientesComPendencia = [];
   const clientesSemPendencia = [];
 
-  clientes.forEach(cliente => {
+  clientes.filter(c => mostrarClientesTeste || !c.teste).forEach(cliente => {
     const { saldo } = calcularDetalheCliente(cliente);
     if (NOMES_FIXOS.includes(cliente.nome)) {
       clientesFixos.push({ ...cliente, saldo });
@@ -1130,7 +1139,7 @@ function getHtmlClienteCard(c) {
     <button type="button" class="client-card" onclick="abrirDetalheCliente('${c.id}')">
       <div class="client-avatar">${getIniciais(c.nome)}</div>
       <div class="client-info">
-        <div class="client-nome">${c.nome}</div>
+        <div class="client-nome">${c.nome}${c.teste ? ' <span style="font-size:11px; font-weight:600; color:var(--ochre); border:1px solid var(--ochre); border-radius:4px; padding:1px 5px; vertical-align:middle;">TESTE</span>' : ''}</div>
         <div class="client-sub">${subtitulo}</div>
       </div>
       <svg class="client-card-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
@@ -1216,6 +1225,7 @@ function getHtmlOrderCard(c, p, det) {
         </div>
       ` : ''}
       <div class="order-card-itens" onclick="event.stopPropagation()">
+        ${p.desconto > 0.01 ? `<div class="ch-empty" style="padding-bottom:6px; color:var(--brick);">Desconto de R$ ${p.desconto.toFixed(2)} aplicado (de R$ ${(p.valorOriginal || p.valorTotal).toFixed(2)}).</div>` : ''}
         ${p.comprovante ? `<div class="ch-empty" style="padding-bottom:6px;"><a href="#" onclick="event.preventDefault(); mostrarComprovante('${p.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante do PIX</a></div>` : ''}
         ${itensHtml}
       </div>
@@ -1630,12 +1640,13 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
 async function salvarCliente() {
   const id = document.getElementById("edit-cliente-id").value;
   const nome = document.getElementById("c-nome").value.trim();
+  const teste = document.getElementById("c-teste").checked;
   if (!nome) { toast("Informe o nome do cliente."); return; }
   if (id) {
-    await dbFS.collection("clientes").doc(id).update({ nome });
+    await dbFS.collection("clientes").doc(id).update({ nome, teste });
     toast("Cliente atualizado.");
   } else {
-    await dbFS.collection("clientes").add({ nome, data: new Date().toISOString() });
+    await dbFS.collection("clientes").add({ nome, teste, data: new Date().toISOString() });
     toast("Cliente adicionado.");
   }
   cancelarEdicaoCliente();
@@ -1645,6 +1656,7 @@ function editarCliente(id) {
   const c = clientes.find(cl => cl.id === id);
   document.getElementById("edit-cliente-id").value = id;
   document.getElementById("c-nome").value = c.nome;
+  document.getElementById("c-teste").checked = !!c.teste;
   document.getElementById("cliente-title").textContent = "Editar cliente";
   document.getElementById("c-nome").focus();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1654,6 +1666,7 @@ function editarCliente(id) {
 function cancelarEdicaoCliente() {
   document.getElementById("edit-cliente-id").value = "";
   document.getElementById("c-nome").value = "";
+  document.getElementById("c-teste").checked = false;
   document.getElementById("cliente-title").textContent = "Novo cliente";
   fecharSheetMobile('sheet-cliente');
 }
@@ -1823,13 +1836,21 @@ function renderItensPedido() {
     `;
   }).join("");
 
-  const total = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
+  const totalItens = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
+  const desconto = Math.min(totalItens, Math.max(0, parseFloat(document.getElementById("ped-desconto")?.value) || 0));
+  const total = arredondarMoeda(totalItens - desconto);
+
   resumoItens.innerHTML = itensPedido.map(i => `
     <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--ink-2); font-size:13px;">
       <span>${i.nome} x${i.quantidade}</span>
       <span class="money"><span class="cur">R$</span>${(i.preco * i.quantidade).toFixed(2)}</span>
     </div>
-  `).join("");
+  `).join("") + (desconto > 0.01 ? `
+    <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--brick); font-size:13px;">
+      <span>Desconto</span>
+      <span class="money">−<span class="cur">R$</span>${desconto.toFixed(2)}</span>
+    </div>
+  ` : '');
   resumoTotal.innerHTML = `<span style="font-size:13px;color:var(--ink-2);">Total</span> <span class="money"><span class="cur">R$</span>${total.toFixed(2)}</span>`;
   resumo.style.display = "block";
 }
@@ -1843,7 +1864,10 @@ async function fazerPedido() {
   if (!clienteId) { toast("Selecione um cliente."); return; }
   if (!itensPedido.length) { toast("Adicione pelo menos um produto."); return; }
 
-  const valorTotal = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
+  const valorOriginal = itensPedido.reduce((s, i) => s + i.preco * i.quantidade, 0);
+  const desconto = Math.min(valorOriginal, Math.max(0, parseFloat(document.getElementById("ped-desconto").value) || 0));
+  const valorTotal = arredondarMoeda(valorOriginal - desconto);
+
   await dbFS.collection("pedidos").add({
     clienteId,
     itens: itensPedido.map(i => ({
@@ -1853,7 +1877,7 @@ async function fazerPedido() {
       descricao: i.descricao || ''
     })),
     quantidade: itensPedido.reduce((s, i) => s + i.quantidade, 0),
-    valorTotal, valorPago, parcelas,
+    valorTotal, valorOriginal, desconto: desconto || null, valorPago, parcelas,
     formaPagamento: forma,
     comprovante: forma === 'pix' ? (comprovantePedidoTemp || null) : null,
     data: new Date().toISOString()
@@ -1883,7 +1907,9 @@ async function fazerPedido() {
       }
     }
   }
-  toast("Pedido registrado em rede com sucesso.");
+  toast(desconto > 0.01
+    ? `Pedido registrado com desconto de R$ ${desconto.toFixed(2)}.`
+    : "Pedido registrado em rede com sucesso.");
   limparPedido();
 }
 
@@ -1943,6 +1969,7 @@ function limparPedido() {
   selecionarFormaPagamento("dinheiro");
   document.getElementById("ped-parcelas").value = "1";
   document.getElementById("ped-pago").value = "0";
+  document.getElementById("ped-desconto").value = "0";
   itensPedido = [];
   renderItensPedido();
 }
@@ -1969,7 +1996,8 @@ function renderHistoricoPagamentos() {
     return;
   }
 
-  const filtrados = (filtro ? pagamentos.filter(pg => pg.clienteId === filtro) : pagamentos)
+  const idsClientesTeste = new Set(clientes.filter(c => c.teste).map(c => c.id));
+  const filtrados = (filtro ? pagamentos.filter(pg => pg.clienteId === filtro) : pagamentos.filter(pg => !idsClientesTeste.has(pg.clienteId)))
     .slice()
     .sort((a, b) => new Date(b.data) - new Date(a.data));
 
@@ -2018,7 +2046,8 @@ function renderHistorico() {
   }
 
   // Ordena do mais recente para o mais antigo
-  const filtrados = (filtro ? lista.filter(p => p.clienteId === filtro) : lista)
+  const idsClientesTeste = new Set(clientes.filter(c => c.teste).map(c => c.id));
+  const filtrados = (filtro ? lista.filter(p => p.clienteId === filtro) : lista.filter(p => !idsClientesTeste.has(p.clienteId)))
     .sort((a, b) => new Date(b.data) - new Date(a.data));
 
   if (!filtrados.length) {
@@ -2111,6 +2140,7 @@ function renderHistorico() {
           </div>
         ` : ''}
         <div class="order-card-itens" onclick="event.stopPropagation()">
+          ${ped.desconto > 0.01 ? `<div class="ch-empty" style="padding-bottom:6px; color:var(--brick);">Desconto de R$ ${ped.desconto.toFixed(2)} aplicado (de R$ ${(ped.valorOriginal || ped.valorTotal).toFixed(2)}).</div>` : ''}
           ${ped.comprovante ? `<div class="ch-empty" style="padding-bottom:6px;"><a href="#" onclick="event.preventDefault(); mostrarComprovante('${ped.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante do PIX</a></div>` : ''}
           ${itensHtml}
         </div>
@@ -2273,7 +2303,7 @@ function mostrarDescricao(descricaoCompleta) {
 
 function atualizarResumoFinanceiro() {
   let totalReceber = 0;
-  clientes.forEach(cliente => {
+  clientes.filter(c => !c.teste).forEach(cliente => {
     const totalPedidos = pedidos
       .filter(p => p.clienteId === cliente.id)
       .reduce((s, p) => s + p.valorTotal, 0);
