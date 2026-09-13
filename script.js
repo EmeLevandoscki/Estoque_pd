@@ -31,13 +31,35 @@ function truncarTexto(texto, max) {
   return t.length > max ? t.substring(0, max) + '...' : t;
 }
 
-function escaparDescricao(texto) {
-  return (texto || '').replace(/'/g, "\\'").replace(/"/g, '"');
+// Escape na saída; os valores originais continuam no banco e nos formulários.
+function escaparHTML(texto) {
+  const entidades = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(texto ?? '').replace(/[&<>"']/g, caractere => entidades[caractere]);
+}
+
+// Apenas para atributos HTML entre aspas, nunca para código JavaScript.
+function escaparAtributo(texto) {
+  return escaparHTML(texto);
+}
+
+// Escaping de atributo não valida protocolos de URLs.
+function urlImagemSegura(valor) {
+  const texto = String(valor ?? '').trim();
+  if (!texto) return '';
+  if (/^data:/i.test(texto)) {
+    return /^data:image\/(?:png|jpe?g|gif|webp|bmp|avif|x-icon);base64,[a-z0-9+/=\s]+$/i.test(texto) ? texto : '';
+  }
+  try {
+    const url = new URL(texto, document.baseURI);
+    return ['http:', 'https:', 'blob:'].includes(url.protocol) ? url.href : '';
+  } catch {
+    return '';
+  }
 }
 
 function getHtmlDescricaoItem(descricao) {
   if (!descricao) return '';
-  return `<div class="item-desc" onclick="mostrarDescricao('${escaparDescricao(descricao)}')" style="font-size:11px;color:#64748b;margin-top:2px;cursor:pointer;text-decoration:underline dotted;">${truncarTexto(descricao, 40)}</div>`;
+  return `<div class="item-desc" data-descricao="${escaparAtributo(descricao)}" onclick="mostrarDescricao(this.dataset.descricao)" style="font-size:11px;color:#64748b;margin-top:2px;cursor:pointer;text-decoration:underline dotted;">${escaparHTML(truncarTexto(descricao, 40))}</div>`;
 }
 
 // --- CATEGORIAS ---
@@ -186,8 +208,13 @@ async function atualizarInterfaceCategorias() {
       const btn = document.createElement('button');
       btn.className = 'category-button';
       btn.type = 'button';
-      btn.setAttribute('onclick', `setCategoria('${cat}')`);
-      btn.innerHTML = `${cat} <span class="delete-icon" onclick="removerCategoria(event, '${cat}')">✕</span>`;
+      btn.onclick = () => setCategoria(cat);
+      btn.textContent = cat + ' ';
+      const excluir = document.createElement('span');
+      excluir.className = 'delete-icon';
+      excluir.textContent = '✕';
+      excluir.onclick = event => removerCategoria(event, cat);
+      btn.appendChild(excluir);
       containerBotoes.appendChild(btn);
     });
     const btnNovo = document.createElement('button');
@@ -524,11 +551,16 @@ function atualizarListaProdutosCombo() {
     .filter(p => p.nome.toLowerCase().includes(filtro))
     .slice(0, 15);
   
-  datalist.innerHTML = produtosFiltrados.map(p => {
+  datalist.replaceChildren(...produtosFiltrados.map(p => {
     const qtd = getQuantidadeProduto(p);
     const descricaoLabel = p.descricao ? ` — ${truncarTexto(p.descricao, 40)}` : '';
-    return `<option value="${p.nome}" data-id="${p.id}" data-preco="${p.precoVenda || 0}"> (${qtd} un.) — R$ ${(p.precoVenda || 0).toFixed(2)}${descricaoLabel}</option>`;
-  }).join('');
+    const option = document.createElement('option');
+    option.value = p.nome;
+    option.dataset.id = p.id;
+    option.dataset.preco = p.precoVenda || 0;
+    option.textContent = ` (${qtd} un.) — R$ ${(p.precoVenda || 0).toFixed(2)}${descricaoLabel}`;
+    return option;
+  }));
 }
 
 let itemsComboTemp = [];
@@ -582,9 +614,9 @@ function renderizarItensComboTemp() {
 
   listDiv.style.display = 'block';
   tags.innerHTML = itemsComboTemp.map(item => `
-    <span title="${escaparDescricao(item.descricao)}" style="display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; padding: 6px 10px; border-radius: 999px; border: 1px solid #bfdbfe; font-size: 13px; color: #0369a1;">
-      ${item.nome} x${item.quantidade}
-      <button type="button" onclick="removerItemDoComboTemp('${item.produtoId}')" style="border: none; background: none; cursor: pointer; color: #0369a1; font-weight: bold; padding: 0; margin: 0;">×</button>
+    <span title="${escaparAtributo(item.descricao)}" style="display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; padding: 6px 10px; border-radius: 999px; border: 1px solid #bfdbfe; font-size: 13px; color: #0369a1;">
+      ${escaparHTML(item.nome)} x${escaparHTML(item.quantidade)}
+      <button type="button" data-arg0="${escaparAtributo(item.produtoId)}" onclick="removerItemDoComboTemp(this.dataset.arg0)" style="border: none; background: none; cursor: pointer; color: #0369a1; font-weight: bold; padding: 0; margin: 0;">×</button>
     </span>
   `).join('');
 
@@ -634,8 +666,8 @@ function getHtmlProdutoEstoque(p) {
   const pill = getPillEstoque(qtdFinal);
 
   const fotoHtml = p.foto
-    ? `<img src="${p.foto}" alt="">`
-    : `<div class="product-photo-placeholder">${getIniciais(p.nome)}</div>`;
+    ? `<img src="${escaparAtributo(urlImagemSegura(p.foto))}" alt="">`
+    : `<div class="product-photo-placeholder">${escaparHTML(getIniciais(p.nome))}</div>`;
 
   const badgesHtml = (emPromocao || p.tipo === 'combo')
     ? `<div class="product-photo-badges">
@@ -645,27 +677,27 @@ function getHtmlProdutoEstoque(p) {
     : '';
 
   return `
-    <div class="product-card" onclick="editarProduto('${p.id}')">
+    <div class="product-card" data-arg0="${escaparAtributo(p.id)}" onclick="editarProduto(this.dataset.arg0)">
       <div class="product-photo${ativo ? '' : ' esgotado'}">
         ${fotoHtml}
         ${badgesHtml}
-        <button type="button" class="product-photo-remove" onclick="event.stopPropagation(); deletarProduto('${p.id}')" aria-label="Excluir produto">&times;</button>
+        <button type="button" class="product-photo-remove" data-arg0="${escaparAtributo(p.id)}" onclick="event.stopPropagation(); deletarProduto(this.dataset.arg0)" aria-label="Excluir produto">&times;</button>
         <span class="product-photo-stock ${pill.classe}">${pill.label}</span>
         ${ativo ? '' : '<div class="product-photo-stamp">Esgotado</div>'}
       </div>
       <div class="product-card-body">
-        <div class="product-nome-grid">${p.nome || 'Sem nome'}</div>
-        <div class="product-cat-grid">${p.categoria || 'Geral'}</div>
+        <div class="product-nome-grid">${escaparHTML(p.nome || 'Sem nome')}</div>
+        <div class="product-cat-grid">${escaparHTML(p.categoria || 'Geral')}</div>
         <div class="product-card-price-row">
           <span class="product-preco-grid money"><span class="cur">R$</span>${precoFinal.toFixed(2)}</span>
-          <button type="button" class="product-cart-add" onclick="event.stopPropagation(); adicionarAoCarrinho('${p.id}')" aria-label="Adicionar ao carrinho">
+          <button type="button" class="product-cart-add" data-arg0="${escaparAtributo(p.id)}" onclick="event.stopPropagation(); adicionarAoCarrinho(this.dataset.arg0)" aria-label="Adicionar ao carrinho">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
           </button>
         </div>
         <div class="qty-ctrl" onclick="event.stopPropagation()">
-          <button onclick="ajustarQty('${p.id}', -1)">&minus;</button>
+          <button data-arg0="${escaparAtributo(p.id)}" onclick="ajustarQty(this.dataset.arg0, -1)">&minus;</button>
           <span class="qty-num">${qtdFinal}</span>
-          <button onclick="ajustarQty('${p.id}', 1)">&plus;</button>
+          <button data-arg0="${escaparAtributo(p.id)}" onclick="ajustarQty(this.dataset.arg0, 1)">&plus;</button>
         </div>
       </div>
     </div>
@@ -777,10 +809,10 @@ function renderCarrinhoEstoque() {
     lista.innerHTML = carrinhoEstoque.map(i => `
       <div class="item-card">
         <div class="item-card-info">
-          <div class="item-card-nome">${i.nome} <span class="ch-item-cat">x${i.quantidade}</span></div>
+          <div class="item-card-nome">${escaparHTML(i.nome)} <span class="ch-item-cat">x${escaparHTML(i.quantidade)}</span></div>
           <div class="item-card-sub money"><span class="cur">R$</span>${(i.preco * i.quantidade).toFixed(2)}</div>
         </div>
-        <button type="button" class="item-card-remove" onclick="removerDoCarrinho('${i.produtoId}')" aria-label="Remover item">&#10005;</button>
+        <button type="button" class="item-card-remove" data-arg0="${escaparAtributo(i.produtoId)}" onclick="removerDoCarrinho(this.dataset.arg0)" aria-label="Remover item">&#10005;</button>
       </div>
     `).join('');
     const total = carrinhoEstoque.reduce((s, i) => s + i.preco * i.quantidade, 0);
@@ -914,7 +946,7 @@ function mostrarComprovante(dataUrl) {
   modal.innerHTML = `
     <div class="modal-desc-content" style="text-align:center;">
       <h3>Comprovante</h3>
-      <img src="${dataUrl}" alt="Comprovante do PIX" style="max-width:100%; border-radius:12px; margin-bottom:1.5rem;">
+      <img src="${escaparAtributo(urlImagemSegura(dataUrl))}" alt="Comprovante do PIX" style="max-width:100%; border-radius:12px; margin-bottom:1.5rem;">
       <button class="primary" onclick="this.parentElement.parentElement.remove()">Fechar</button>
     </div>
   `;
@@ -929,7 +961,7 @@ function atualizarPreviewFotoProduto() {
   const removerBtn = document.getElementById('p-foto-remover-btn');
   if (!preview) return;
   if (fotoProdutoTemp) {
-    preview.innerHTML = `<img src="${fotoProdutoTemp}" alt="Foto do produto">`;
+    preview.innerHTML = `<img src="${escaparAtributo(urlImagemSegura(fotoProdutoTemp))}" alt="Foto do produto">`;
     if (removerBtn) removerBtn.style.display = '';
   } else {
     preview.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>`;
@@ -1156,10 +1188,10 @@ function getHtmlClienteCard(c) {
     ? `${det.qtdPedidos} pedido${det.qtdPedidos === 1 ? '' : 's'} · sem dívida`
     : `${det.qtdPedidos} pedido${det.qtdPedidos === 1 ? '' : 's'} · devendo <span class="money"><span class="cur">R$</span>${det.saldo.toFixed(2)}</span>`;
   return `
-    <button type="button" class="client-card" onclick="abrirDetalheCliente('${c.id}')">
-      <div class="client-avatar">${getIniciais(c.nome)}</div>
+    <button type="button" class="client-card" data-arg0="${escaparAtributo(c.id)}" onclick="abrirDetalheCliente(this.dataset.arg0)">
+      <div class="client-avatar">${escaparHTML(getIniciais(c.nome))}</div>
       <div class="client-info">
-        <div class="client-nome">${c.nome}${c.teste ? ' <span style="font-size:11px; font-weight:600; color:var(--ochre); border:1px solid var(--ochre); border-radius:4px; padding:1px 5px; vertical-align:middle;">TESTE</span>' : ''}</div>
+        <div class="client-nome">${escaparHTML(c.nome)}${c.teste ? ' <span style="font-size:11px; font-weight:600; color:var(--ochre); border:1px solid var(--ochre); border-radius:4px; padding:1px 5px; vertical-align:middle;">TESTE</span>' : ''}</div>
         <div class="client-sub">${subtitulo}</div>
       </div>
       <svg class="client-card-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
@@ -1187,8 +1219,16 @@ function renderClientes() {
   const sel = document.getElementById("filtro-cliente");
   if (sel) {
     const cur = sel.value;
-    sel.innerHTML = '<option value="">Todos os clientes</option>' +
-      clientesOrdenados.map(c => `<option value="${c.id}"${c.id === cur ? " selected" : ""}>${c.nome}</option>`).join("");
+    const todos = document.createElement('option');
+    todos.value = '';
+    todos.textContent = 'Todos os clientes';
+    sel.replaceChildren(todos, ...clientesOrdenados.map(c => {
+      const option = document.createElement('option');
+      option.value = c.id;
+      option.textContent = c.nome;
+      option.selected = c.id === cur;
+      return option;
+    }));
   }
 
   const subtituloPagina = document.getElementById("clientes-subtitulo");
@@ -1215,21 +1255,21 @@ function getHtmlOrderCard(c, p, det) {
   const cardId = `order-card-${c.id}-${p.id}`;
   const itensHtml = (p.itens && p.itens.length) ? p.itens.map(i => `
     <div class="ch-item">
-      <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
-      <span class="ch-item-qty">x${i.quantidade || 0}</span>
+      <span class="ch-item-nome">${escaparHTML(i.nome || 'Produto')} <span class="ch-item-cat">(${escaparHTML(i.categoria || 'Geral')})</span></span>
+      <span class="ch-item-qty">x${escaparHTML(i.quantidade || 0)}</span>
       <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
       ${getHtmlDescricaoItem(i.descricao)}
     </div>
   `).join('') : '<div class="ch-empty">Sem itens.</div>';
 
   return `
-    <div class="order-card status-${statusKey}" id="${cardId}" onclick="togglePedidoCard('${cardId}')">
+    <div class="order-card status-${statusKey}" id="${escaparAtributo(cardId)}" data-arg0="${escaparAtributo(cardId)}" onclick="togglePedidoCard(this.dataset.arg0)">
       <div class="order-card-top">
         <span class="order-card-data">${data}</span>
         <span class="status-badge status-${statusKey}">${statusLabel}</span>
       </div>
       <div class="order-card-sub">
-        <span>${qtdItensPedido} ${qtdItensPedido === 1 ? 'item' : 'itens'} · ${formatarFormaPagamento(p.formaPagamento)}</span>
+        <span>${escaparHTML(qtdItensPedido)} ${qtdItensPedido === 1 ? 'item' : 'itens'} · ${escaparHTML(formatarFormaPagamento(p.formaPagamento))}</span>
         <span class="order-card-arrow">▾</span>
       </div>
       ${statusKey === 'parcial' ? `
@@ -1246,7 +1286,7 @@ function getHtmlOrderCard(c, p, det) {
       ` : ''}
       <div class="order-card-itens" onclick="event.stopPropagation()">
         ${p.desconto > 0.01 ? `<div class="ch-empty" style="padding-bottom:6px; color:var(--brick);">Desconto de R$ ${p.desconto.toFixed(2)} aplicado (de R$ ${(p.valorOriginal || p.valorTotal).toFixed(2)}).</div>` : ''}
-        ${p.comprovante ? `<div class="ch-empty" style="padding-bottom:6px;"><a href="#" onclick="event.preventDefault(); mostrarComprovante('${p.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante do PIX</a></div>` : ''}
+        ${p.comprovante ? `<div class="ch-empty" style="padding-bottom:6px;"><a href="#" data-arg0="${escaparAtributo(p.comprovante)}" onclick="event.preventDefault(); mostrarComprovante(this.dataset.arg0)" style="color:var(--forest); font-weight:500;">Ver comprovante do PIX</a></div>` : ''}
         ${itensHtml}
       </div>
     </div>
@@ -1293,7 +1333,7 @@ function renderDetalheCliente() {
         const pgData = pg.data ? new Date(pg.data).toLocaleDateString("pt-BR") : "—";
         const forma = pg.formaPagamento === 'dinheiro' ? 'Dinheiro' : 'PIX';
         const comprovanteLink = pg.comprovante
-          ? ` · <a href="#" onclick="event.preventDefault(); mostrarComprovante('${pg.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante</a>`
+          ? ` · <a href="#" data-arg0="${escaparAtributo(pg.comprovante)}" onclick="event.preventDefault(); mostrarComprovante(this.dataset.arg0)" style="color:var(--forest); font-weight:500;">Ver comprovante</a>`
           : '';
         return `
           <div class="pagamento-linha">
@@ -1324,9 +1364,9 @@ function renderDetalheCliente() {
     ${!saldoZero(saldo) ? `
       <div class="section-block">
         <div class="pay-row">
-          <input type="number" id="pay-val-${c.id}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$" inputmode="decimal">
-          <button class="sm success" onclick="abaterPagamento('${c.id}', ${saldo})">Abater</button>
-          <button class="sm primary" onclick="quitarTudo('${c.id}', ${saldo})">Quitar tudo</button>
+          <input type="number" id="pay-val-${escaparAtributo(c.id)}" value="0" step="0.01" min="0" max="${saldo.toFixed(2)}" placeholder="R$" inputmode="decimal">
+          <button class="sm success" data-arg0="${escaparAtributo(c.id)}" data-arg1="${escaparAtributo(saldo)}" onclick="abaterPagamento(this.dataset.arg0, Number(this.dataset.arg1))">Abater</button>
+          <button class="sm primary" data-arg0="${escaparAtributo(c.id)}" data-arg1="${escaparAtributo(saldo)}" onclick="quitarTudo(this.dataset.arg0, Number(this.dataset.arg1))">Quitar tudo</button>
         </div>
       </div>
     ` : ''}
@@ -1342,8 +1382,8 @@ function renderDetalheCliente() {
     </div>
 
     <div class="card-actions-buttons">
-      <button class="sm" onclick="editarCliente('${c.id}')">Editar cliente</button>
-      <button class="sm danger" onclick="deletarCliente('${c.id}')">Excluir cliente</button>
+      <button class="sm" data-arg0="${escaparAtributo(c.id)}" onclick="editarCliente(this.dataset.arg0)">Editar cliente</button>
+      <button class="sm danger" data-arg0="${escaparAtributo(c.id)}" onclick="deletarCliente(this.dataset.arg0)">Excluir cliente</button>
     </div>
   `;
 }
@@ -1509,10 +1549,10 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
               const itensTexto = p.itens ? p.itens.map(i => `${i.nome} x${i.quantidade}`).join(', ') : 'Sem itens';
               return `
                 <label style="display: flex; align-items: center; padding: 10px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
-                  <input type="radio" name="pedido-select" value="${p.id}" style="margin-right: 10px; cursor: pointer;">
+                  <input type="radio" name="pedido-select" value="${escaparAtributo(p.id)}" style="margin-right: 10px; cursor: pointer;">
                   <div style="flex: 1;">
                     <div style="font-weight: 600; color: #0f172a; font-size: 14px;">${data} • R$ ${p.valorTotal.toFixed(2)}</div>
-                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">${itensTexto}</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">${escaparHTML(itensTexto)}</div>
                     <div style="font-size: 13px; color: #ef4444; margin-top: 4px; font-weight: 500;">Falta: R$ ${p.saldoPedido.toFixed(2)}</div>
                   </div>
                 </label>
@@ -1576,7 +1616,7 @@ function abrirModalPagamentoPorPedido(clienteId, valor) {
     function atualizarPreviewComprovantePagto() {
       if (!previewComprovante) return;
       if (comprovanteEscolhido) {
-        previewComprovante.innerHTML = `<img src="${comprovanteEscolhido}" alt="Comprovante">`;
+        previewComprovante.innerHTML = `<img src="${escaparAtributo(urlImagemSegura(comprovanteEscolhido))}" alt="Comprovante">`;
         if (btnRemoverComprovante) btnRemoverComprovante.style.display = '';
       } else {
         previewComprovante.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>`;
@@ -1840,18 +1880,18 @@ function renderItensPedido() {
 
   lista.innerHTML = itensPedido.map(i => {
     const comboExtras = i.tipo === 'combo' && Array.isArray(i.itensCombo) && i.itensCombo.length
-      ? `<div class="product-sub">Combo: ${(i.itensCombo || []).map(item => `${item.nome} x${item.quantidade}`).join(', ')}</div>`
+      ? `<div class="product-sub">Combo: ${(i.itensCombo || []).map(item => `${escaparHTML(item.nome)} x${escaparHTML(item.quantidade)}`).join(', ')}</div>`
       : '';
 
     return `
       <div class="item-card">
         <div class="item-card-info">
-          <div class="item-card-nome">${i.nome} <span class="ch-item-cat">x${i.quantidade}</span></div>
+          <div class="item-card-nome">${escaparHTML(i.nome)} <span class="ch-item-cat">x${escaparHTML(i.quantidade)}</span></div>
           <div class="item-card-sub money"><span class="cur">R$</span>${(i.preco * i.quantidade).toFixed(2)}</div>
           ${comboExtras}
           ${getHtmlDescricaoItem(i.descricao)}
         </div>
-        <button type="button" class="item-card-remove" onclick="removerItemPedido('${i.produtoId}')" aria-label="Remover item">&#10005;</button>
+        <button type="button" class="item-card-remove" data-arg0="${escaparAtributo(i.produtoId)}" onclick="removerItemPedido(this.dataset.arg0)" aria-label="Remover item">&#10005;</button>
       </div>
     `;
   }).join("");
@@ -1862,7 +1902,7 @@ function renderItensPedido() {
 
   resumoItens.innerHTML = itensPedido.map(i => `
     <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--ink-2); font-size:13px;">
-      <span>${i.nome} x${i.quantidade}</span>
+      <span>${escaparHTML(i.nome)} x${escaparHTML(i.quantidade)}</span>
       <span class="money"><span class="cur">R$</span>${(i.preco * i.quantidade).toFixed(2)}</span>
     </div>
   `).join("") + (desconto > 0.01 ? `
@@ -1969,7 +2009,7 @@ function atualizarPreviewComprovantePedido() {
   const removerBtn = document.getElementById('ped-comprovante-remover-btn');
   if (!preview) return;
   if (comprovantePedidoTemp) {
-    preview.innerHTML = `<img src="${comprovantePedidoTemp}" alt="Comprovante do PIX">`;
+    preview.innerHTML = `<img src="${escaparAtributo(urlImagemSegura(comprovantePedidoTemp))}" alt="Comprovante do PIX">`;
     if (removerBtn) removerBtn.style.display = '';
   } else {
     preview.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>`;
@@ -2033,13 +2073,13 @@ function renderHistoricoPagamentos() {
         const data = pg.data ? new Date(pg.data).toLocaleDateString("pt-BR") : "—";
         const forma = pg.formaPagamento === 'dinheiro' ? 'Dinheiro' : 'PIX';
         const comprovanteLink = pg.comprovante
-          ? ` · <a href="#" onclick="event.preventDefault(); mostrarComprovante('${pg.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante</a>`
+          ? ` · <a href="#" data-arg0="${escaparAtributo(pg.comprovante)}" onclick="event.preventDefault(); mostrarComprovante(this.dataset.arg0)" style="color:var(--forest); font-weight:500;">Ver comprovante</a>`
           : '';
         return `
           <div class="pagamento-linha">
             <span class="pagamento-dot"></span>
             <div class="pagamento-info">
-              <div class="pagamento-data">${c ? c.nome : 'Cliente removido'}</div>
+              <div class="pagamento-data">${escaparHTML(c ? c.nome : 'Cliente removido')}</div>
               <div class="pagamento-forma">${data} · ${forma}${comprovanteLink}</div>
             </div>
             <div class="pagamento-valor money"><span class="cur">R$</span>${pg.valor.toFixed(2)}</div>
@@ -2130,21 +2170,21 @@ function renderHistorico() {
 
     const itensHtml = (ped.itens && ped.itens.length) ? ped.itens.map(i => `
       <div class="ch-item">
-        <span class="ch-item-nome">${i.nome || 'Produto'} <span class="ch-item-cat">(${i.categoria || 'Geral'})</span></span>
-        <span class="ch-item-qty">x${i.quantidade || 0}</span>
+        <span class="ch-item-nome">${escaparHTML(i.nome || 'Produto')} <span class="ch-item-cat">(${escaparHTML(i.categoria || 'Geral')})</span></span>
+        <span class="ch-item-qty">x${escaparHTML(i.quantidade || 0)}</span>
         <span class="ch-item-sub">R$ ${((i.preco || 0) * (i.quantidade || 0)).toFixed(2)}</span>
         ${getHtmlDescricaoItem(i.descricao)}
       </div>
     `).join('') : '<div class="ch-empty">Sem itens.</div>';
 
     html += `
-      <div class="order-card status-${statusKey}" id="${cardId}" onclick="togglePedidoCard('${cardId}')">
+      <div class="order-card status-${statusKey}" id="${escaparAtributo(cardId)}" data-arg0="${escaparAtributo(cardId)}" onclick="togglePedidoCard(this.dataset.arg0)">
         <div class="order-card-top">
           <span class="order-card-data">${data}</span>
           <span class="status-badge status-${statusKey}">${statusLabel}</span>
         </div>
         <div class="order-card-sub">
-          <span>${c ? c.nome : '—'} · ${qtdItensPedido} ${qtdItensPedido === 1 ? 'item' : 'itens'} · ${formatarFormaPagamento(ped.formaPagamento)}</span>
+          <span>${escaparHTML(c ? c.nome : '—')} · ${escaparHTML(qtdItensPedido)} ${qtdItensPedido === 1 ? 'item' : 'itens'} · ${escaparHTML(formatarFormaPagamento(ped.formaPagamento))}</span>
           <span class="order-card-arrow">▾</span>
         </div>
         ${statusKey === 'parcial' ? `
@@ -2161,7 +2201,7 @@ function renderHistorico() {
         ` : ''}
         <div class="order-card-itens" onclick="event.stopPropagation()">
           ${ped.desconto > 0.01 ? `<div class="ch-empty" style="padding-bottom:6px; color:var(--brick);">Desconto de R$ ${ped.desconto.toFixed(2)} aplicado (de R$ ${(ped.valorOriginal || ped.valorTotal).toFixed(2)}).</div>` : ''}
-          ${ped.comprovante ? `<div class="ch-empty" style="padding-bottom:6px;"><a href="#" onclick="event.preventDefault(); mostrarComprovante('${ped.comprovante}')" style="color:var(--forest); font-weight:500;">Ver comprovante do PIX</a></div>` : ''}
+          ${ped.comprovante ? `<div class="ch-empty" style="padding-bottom:6px;"><a href="#" data-arg0="${escaparAtributo(ped.comprovante)}" onclick="event.preventDefault(); mostrarComprovante(this.dataset.arg0)" style="color:var(--forest); font-weight:500;">Ver comprovante do PIX</a></div>` : ''}
           ${itensHtml}
         </div>
       </div>
@@ -2201,13 +2241,16 @@ function atualizarListaProdutosPedido() {
     .filter(p => isProdutoAtivo(p))
     .filter(p => (p.nome || '').toLowerCase().includes(filtro));
 
-  datalist.innerHTML = produtosFiltrados.map(p => {
+  datalist.replaceChildren(...produtosFiltrados.map(p => {
     const qtdAtual = getQuantidadeProduto(p);
     const precoFinal = p.precoVenda || 0;
     const categoria = p.categoria ? ` (${p.categoria})` : '';
     const descricaoLabel = p.descricao ? ` — ${truncarTexto(p.descricao, 40)}` : '';
-    return `<option value="${p.nome}">${categoria} (${qtdAtual} un.) — R$ ${precoFinal.toFixed(2)}${descricaoLabel}</option>`;
-  }).join('');
+    const option = document.createElement('option');
+    option.value = p.nome;
+    option.textContent = `${categoria} (${qtdAtual} un.) — R$ ${precoFinal.toFixed(2)}${descricaoLabel}`;
+    return option;
+  }));
 }
 
 // --- EVENTOS DE TECLADO ---
@@ -2309,7 +2352,7 @@ function mostrarDescricao(descricaoCompleta) {
   modal.innerHTML = `
     <div class="modal-desc-content">
       <h3>Descrição do Produto</h3>
-      <p>${descricaoCompleta || 'Sem descrição.'}</p>
+      <p>${escaparHTML(descricaoCompleta || 'Sem descrição.')}</p>
       <button class="primary" onclick="this.parentElement.parentElement.remove()">Fechar</button>
     </div>
   `;
