@@ -289,8 +289,22 @@ async function verificarSenha() {
 }
 
 let sincronizacaoAtiva = false;
+let cancelarSincronizacoes = [];
+let timerLimpezaCategorias = null;
+
+function encerrarSessaoLocal() {
+  cancelarSincronizacoes.forEach(cancelar => cancelar());
+  cancelarSincronizacoes = [];
+  clearTimeout(timerLimpezaCategorias);
+  sincronizacaoAtiva = false;
+  produtos = []; clientes = []; pedidos = []; pagamentos = [];
+  document.getElementById("app-container").style.display = "none";
+  document.getElementById("tela-bloqueio").style.display = "flex";
+  inicializarSeguranca();
+}
 
 function desbloquearApp() {
+  if (!authFB.currentUser) return;
   document.getElementById("tela-bloqueio").style.display = "none";
   document.getElementById("app-container").style.display = "block";
   document.getElementById("campo-email").value = "";
@@ -302,11 +316,14 @@ function desbloquearApp() {
   aplicarTela(location.hash ? location.hash.slice(1) : "inicio");
 }
 
-function bloquearSistema() {
-  document.getElementById("app-container").style.display = "none";
-  document.getElementById("tela-bloqueio").style.display = "flex";
-  authFB.signOut();
-  inicializarSeguranca();
+async function bloquearSistema() {
+  encerrarSessaoLocal();
+  try {
+    await authFB.signOut();
+    location.reload();
+  } catch (error) {
+    toast("Não foi possível encerrar a sessão. Tente sair novamente.");
+  }
 }
 
 // --- NAVEGAÇÃO ENTRE TELAS (SPA) ---
@@ -371,6 +388,7 @@ window.addEventListener("DOMContentLoaded", function() {
   authFB.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(() => {});
   authFB.onAuthStateChanged(user => {
     if (user) desbloquearApp();
+    else encerrarSessaoLocal();
     const carregando = document.getElementById("tela-carregando");
     if (carregando) carregando.classList.add("hide");
   });
@@ -379,35 +397,37 @@ window.addEventListener("DOMContentLoaded", function() {
 // --- SINCRONIZAÇÃO EM TEMPO REAL ---
 
 function ativarSincronizacaoEmTempoReal() {
-  dbFS.collection("produtos").orderBy("nome", "asc").onSnapshot(snapshot => {
+  if (!authFB.currentUser) return;
+  cancelarSincronizacoes.push(dbFS.collection("produtos").orderBy("nome", "asc").onSnapshot(snapshot => {
     produtos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderEstoque();
     atualizarInterfaceCategorias();
     atualizarFiltroCategoriaEstoque();
     atualizarResumoFinanceiro();
-  });
+  }));
 
-  dbFS.collection("clientes").orderBy("nome", "asc").onSnapshot(snapshot => {
+  cancelarSincronizacoes.push(dbFS.collection("clientes").orderBy("nome", "asc").onSnapshot(snapshot => {
     clientes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderClientes();
     atualizarInterfaceCategorias();
-  });
+  }));
 
-  dbFS.collection("pedidos").onSnapshot(snapshot => {
+  cancelarSincronizacoes.push(dbFS.collection("pedidos").onSnapshot(snapshot => {
     pedidos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderClientes();
     renderHistorico();
     atualizarResumoFinanceiro();
-  });
+  }));
 
-  dbFS.collection("pagamentos").onSnapshot(snapshot => {
+  cancelarSincronizacoes.push(dbFS.collection("pagamentos").onSnapshot(snapshot => {
     pagamentos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderClientes();
     renderHistorico();
     atualizarResumoFinanceiro();
-  });
+  }));
 
-  setTimeout(async () => {
+  timerLimpezaCategorias = setTimeout(async () => {
+    if (!authFB.currentUser) return;
     const produtosSnapshot = await dbFS.collection("produtos").get();
     const categoriasUsadas = new Set();
     produtosSnapshot.docs.forEach(doc => {
