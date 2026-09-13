@@ -3,14 +3,18 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function autorizado() {
       return request.auth != null
-        && exists(/databases/$(database)/documents/usuarios_autorizados/$(request.auth.uid));
+        && request.auth.uid in [
+          // Substitua pelos UIDs reais antes de publicar estas regras.
+          "UID_USUARIO_1",
+          "UID_USUARIO_2"
+        ];
     }
 
     match /{colecao}/{documento} {
       allow read, write: if colecao in ['produtos', 'clientes', 'pedidos', 'pagamentos']
         && autorizado();
     }
-    // Nenhum cliente pode conceder acesso a si mesmo ou listar autorizados.
+    // A autorização depende apenas da lista acima, nunca de dados do cliente.
     match /usuarios_autorizados/{uid} {
       allow read, write: if false;
     }
